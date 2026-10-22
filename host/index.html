@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610221806">
+<link rel="stylesheet" href="../css/base.css?v=202610221816">
 <style>
   /* Host = Mac: breites Layout */
   .host-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 32px 60px; }
@@ -57,6 +57,9 @@
       <h2>Testspiel anlegen</h2>
       <p>Ein Name pro Zeile. Später kommt die Teilnehmer- und Teamliste als Datei.</p>
       <textarea id="names" class="field" placeholder="Martin&#10;Moritz&#10;Lisa"></textarea>
+      <div class="label" style="margin-top:18px">Spielcode (optional)</div>
+      <input id="wish" class="field code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="z. B. SMAK" style="font-size:1.2rem">
+      <p style="font-size:.85rem;margin-top:6px">Leer lassen = zufälliger Code. Mit festem Code kannst Du den QR-Code vorab in Deine Screens einbauen. 4–6 Zeichen, Buchstaben und Ziffern 2–9.</p>
       <button id="create" class="btn">Spiel starten</button>
     </div>
     <div class="panel">
@@ -73,6 +76,10 @@
       <div class="qr" id="qr"></div>
       <div class="code-big" id="code"></div>
       <div class="url">squizzzzz-live.github.io</div>
+      <div class="row" style="justify-content:center">
+        <button id="qr-png" class="btn secondary small">QR als PNG</button>
+        <button id="qr-svg" class="btn secondary small">QR als SVG</button>
+      </div>
     </div>
     <div class="panel">
       <h2>Spieler</h2>
@@ -97,8 +104,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script type="module">
-  import { startRibbons } from "../js/ribbons.js?v=202610221806";
-  import { auth, db, HOST_UID, APP_URL } from "../js/fb.js?v=202610221806";
+  import { startRibbons } from "../js/ribbons.js?v=202610221816";
+  import { auth, db, HOST_UID, APP_URL } from "../js/fb.js?v=202610221816";
   import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, set, remove, onValue, serverTimestamp }
@@ -141,7 +148,13 @@
     if (!names.length) return err("Bitte mindestens einen Namen eintragen.");
     const btn = $("create"); btn.disabled = true; btn.textContent = "Wird angelegt …";
     try {
-      let code; do { code = newCode(); } while ((await get(ref(db, `games/${code}/public`))).exists());
+      let code;
+      const wish = $("wish").value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (wish) {
+        if (wish.length < 4 || /[01IO]/.test(wish)) throw new Error("Der Wunschcode braucht 4–6 Zeichen ohne 0, 1, I und O.");
+        if ((await get(ref(db, `games/${wish}/public`))).exists()) throw new Error("Unter diesem Code läuft schon ein Spiel.");
+        code = wish;
+      } else { do { code = newCode(); } while ((await get(ref(db, `games/${code}/public`))).exists()); }
       const rosterObj = {}, nameIndex = {};
       names.map(cleanName).filter(Boolean).forEach((n, i) => {
         if (nameIndex[n.toLowerCase()]) return;              // doppelte Namen nur einmal
@@ -154,7 +167,7 @@
         nameIndex,
       });
       store.set(code); openLobby(code);
-    } catch (e) { err("Spiel konnte nicht angelegt werden: " + (e.code || e.message)); }
+    } catch (e) { err(e.code ? "Spiel konnte nicht angelegt werden: " + e.code : e.message); }
     finally { btn.disabled = false; btn.textContent = "Spiel starten"; }
   });
 
@@ -178,11 +191,11 @@
       if (uid) nIn++; if (online) nOn++;
       const li = document.createElement("li");
       li.innerHTML = `<span class="status-dot ${online ? "on" : ""}"></span><span class="n"></span><span class="state">${uid ? (online ? "online" : "angemeldet, offline") : "noch nicht da"}</span>`;
-      li.querySelector(".n").textContent = p.name + (p.guest ? "  · neu" : "");
+      li.querySelector(".n").textContent = p.name + (p.guest ? "  · neu, hat sich selbst eingetragen" : "");
       if (uid) {
         const b = document.createElement("button");
-        b.className = "btn secondary small"; b.textContent = "Freigeben";
-        b.title = "Namen wieder freigeben (falls sich jemand vertippt hat)";
+        b.className = "btn secondary small"; b.textContent = "Abmelden";
+        b.title = "Spieler abmelden – der Name wird wieder frei (z. B. wenn sich jemand vertippt hat oder das Handy wechselt)";
         b.addEventListener("click", () => remove(ref(db, `games/${game}/claims/${pid}`)));
         li.appendChild(b);
       }
@@ -199,6 +212,29 @@
     });
     $("c-in").textContent = nIn; $("c-on").textContent = nOn; $("c-all").textContent = Object.keys(roster).length;
   }
+
+  // QR-Code exportieren (für Leinwand-Screens, z. B. in After Effects)
+  function qrSvg(dark = "#000000") {
+    const qr = qrcode(0, "M"); qr.addData(APP_URL + "?g=" + game); qr.make();
+    const n = qr.getModuleCount(), q = 4, size = n + 2 * q;           // 4 Module Ruhezone
+    let path = "";
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) path += `M${c + q},${r + q}h1v1h-1z`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#ffffff"/><path d="${path}" fill="${dark}"/></svg>`;
+  }
+  function download(blob, name) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  $("qr-svg").addEventListener("click", () => download(new Blob([qrSvg()], { type: "image/svg+xml" }), `SQUIZZZzZ-QR-${game}.svg`));
+  $("qr-png").addEventListener("click", () => {
+    const img = new Image(), px = 2048;
+    img.onload = () => {
+      const c = document.createElement("canvas"); c.width = c.height = px;
+      const x = c.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(img, 0, 0, px, px);
+      c.toBlob((b) => download(b, `SQUIZZZzZ-QR-${game}.png`), "image/png");
+    };
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(qrSvg());
+  });
 
   $("allow-guests").addEventListener("change", (e) => set(ref(db, `games/${game}/public/allowGuests`), e.target.checked));
 
