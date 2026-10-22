@@ -33,7 +33,7 @@ p { color: var(--muted); line-height: 1.5; }
 .value { font-size: 1.05rem; font-weight: 700; word-break: break-all; margin-top: 4px; }
 .mono { font-family: ui-monospace, Menlo, monospace; font-size: .95rem; }
 .error { color: #FF9A9A; margin-top: 16px; }
-.hidden { display: none; }
+.hidden { display: none !important; }
 /* Lesbarkeit über den bewegten Linien */
 h1, p, .kicker { text-shadow: 0 2px 18px rgba(6, 9, 69, .85); }
 .card { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
