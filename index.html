@@ -7,6 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="SQUIZZZzZ">
+<meta name="mobile-web-app-capable" content="yes">
 <title>SQUIZZZzZ</title>
 <style>
   .timerbar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
@@ -35,6 +39,10 @@
   .keypad button { aspect-ratio: auto; padding: 16px 0; }
   .keypad .ok { background: var(--orange); color: var(--navy-deep); }
   .myans { color: var(--text); font-weight: 700; margin-top: 8px; }
+  .fs-hint { position: relative; margin-top: 18px; padding: 14px 40px 14px 16px; border-radius: 14px; background: rgba(255,142,0,.14); border: 1px solid rgba(255,142,0,.5); text-align: left; font-size: .92rem; line-height: 1.45; }
+  .fs-hint .ico { display: inline-block; border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; }
+  .fs-x { position: absolute; top: 8px; right: 8px; background: transparent; border: 0; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
+  @media (display-mode: standalone), (display-mode: fullscreen) { .wrap { padding-top: max(24px, env(safe-area-inset-top)); } }
   body.in-wait .wrap { padding-top: 14px; }
   body.in-wait .wrap > .kicker, body.in-wait .wrap > h1 { display: none; }
   .wait-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 800; }
@@ -56,12 +64,19 @@
   .big-check.bad { background: #E5484D; color: #fff; box-shadow: 0 0 40px rgba(229,72,77,.5); }
   .big-check.none { background: rgba(255,255,255,.15); color: var(--text); box-shadow: none; }
 </style>
-<link rel="stylesheet" href="css/base.css?v=202610222247">
+<link rel="stylesheet" href="css/base.css?v=202610222257">
 </head>
 <body>
 <main class="wrap">
   <div class="kicker">Live</div>
   <h1>SQUIZZZzZ</h1>
+
+  <!-- Vollbild-Hinweis (vor der Namenswahl) -->
+  <div id="fs-hint" class="fs-hint hidden">
+    <div id="fs-ios"><b>Tipp: Vollbild ohne Adressleiste</b><br>Tippe unten auf <span class="ico">⬆︎</span> <b>Teilen</b> → <b>„Zum Home-Bildschirm“</b> und öffne SQUIZZZzZ dann über das neue Icon. <i>Am besten jetzt, bevor Du Deinen Namen wählst.</i></div>
+    <div id="fs-android" class="hidden"><b>Tipp:</b> Für Vollbild hier tippen: <button id="fs-btn" class="btn small" style="margin:6px 0 0">Vollbild</button></div>
+    <button id="fs-close" class="fs-x" aria-label="Hinweis schließen">✕</button>
+  </div>
 
   <!-- 1. Spielcode eingeben (falls nicht über QR-Code gekommen) -->
   <section id="v-code" class="hidden">
@@ -136,9 +151,9 @@
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610222247";
-  import { auth, db } from "./js/fb.js?v=202610222247";
-  import { isCorrect } from "./js/scoring.js?v=202610222247";
+  import { startRibbons } from "./js/ribbons.js?v=202610222257";
+  import { auth, db } from "./js/fb.js?v=202610222257";
+  import { isCorrect } from "./js/scoring.js?v=202610222257";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -146,7 +161,7 @@
   const ribbons = startRibbons();
   const $ = (id) => document.getElementById(id);
   const views = ["v-code", "v-names", "v-in", "v-title", "v-q", "v-sent", "v-reveal"];
-  const show = (v) => { views.forEach((id) => $(id).classList.toggle("hidden", id !== v)); document.body.classList.toggle("in-question", v === "v-q"); document.body.classList.toggle("in-wait", v === "v-in"); $("ticker").classList.toggle("hidden", v !== "v-in" || !lobby.ticker); if (v !== "v-in") stopSlides(); };
+  const show = (v) => { updateFsHint?.(v); views.forEach((id) => $(id).classList.toggle("hidden", id !== v)); document.body.classList.toggle("in-question", v === "v-q"); document.body.classList.toggle("in-wait", v === "v-in"); $("ticker").classList.toggle("hidden", v !== "v-in" || !lobby.ticker); if (v !== "v-in") stopSlides(); };
   const err = (t) => { $("error").textContent = t; $("error").classList.toggle("hidden", !t); };
   const msg = (t) => { $("msg").textContent = t; $("msg").classList.toggle("hidden", !t); };
 
@@ -154,6 +169,22 @@
   let game = (params.get("g") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   let uid = null, roster = {}, claims = {}, unsub = [], exists = false, loaded = false, watchdog = 0, allowGuests = false;
   let pub = {}, myAnswers = {}, shownQid = null, shownAt = 0, timerRaf = 0, teams = {}, lobby = {};
+
+
+  // ---------- Vollbild / Home-Bildschirm ----------
+  const standalone = matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches || navigator.standalone === true;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const canFs = !!document.documentElement.requestFullscreen && !isIOS;
+  let fsDismissed = false; try { fsDismissed = sessionStorage.getItem("sqz-fs") === "1"; } catch {}
+  function updateFsHint(view) {
+    const wanted = !standalone && !fsDismissed && (view === "v-code" || view === "v-names") && (isIOS || canFs) && !document.fullscreenElement;
+    $("fs-hint").classList.toggle("hidden", !wanted);
+    $("fs-ios").classList.toggle("hidden", !isIOS); $("fs-android").classList.toggle("hidden", isIOS);
+  }
+  $("fs-close").addEventListener("click", () => { fsDismissed = true; try { sessionStorage.setItem("sqz-fs", "1"); } catch {} $("fs-hint").classList.add("hidden"); });
+  $("fs-btn").addEventListener("click", () => document.documentElement.requestFullscreen?.().catch(() => {}));
+  // Home-Bildschirm-App ohne ?g=… gestartet: zuletzt genutzten Spielcode verwenden
+  if (!game) { try { game = (localStorage.getItem("sqz-last-game") || "").toUpperCase(); } catch {} }
 
   onAuthStateChanged(auth, (user) => {
     if (!user) { signInAnonymously(auth).catch((e) => err("Anmeldung fehlgeschlagen: " + e.code)); return; }
@@ -170,7 +201,7 @@
   $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-go").click(); });
 
   function joinGame(code) {
-    game = code; exists = false; loaded = false; err(""); msg("Verbinde …");
+    game = code; try { localStorage.setItem("sqz-last-game", code); } catch {} exists = false; loaded = false; err(""); msg("Verbinde …");
     clearTimeout(watchdog);
     watchdog = setTimeout(() => { if (!loaded) { msg("Die Verbindung hakt gerade."); $("retry").classList.remove("hidden"); } }, 7000);
     unsub.forEach((u) => u()); unsub = [];

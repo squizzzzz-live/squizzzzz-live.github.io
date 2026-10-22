@@ -1,9 +1,9 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610222247";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222247";
-import { initRound } from "./host-round.js?v=202610222247";
-import { initLobby } from "./host-lobby.js?v=202610222247";
-import { shrink } from "./images.js?v=202610222247";
+import { startRibbons } from "./ribbons.js?v=202610222257";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222257";
+import { initRound } from "./host-round.js?v=202610222257";
+import { initLobby } from "./host-lobby.js?v=202610222257";
+import { shrink } from "./images.js?v=202610222257";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }

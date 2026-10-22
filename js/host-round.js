@@ -1,8 +1,8 @@
 // Host: Runde laden, Fragen steuern, auflösen, Punkte führen (Keypad).
-import { db } from "./fb.js?v=202610222247";
-import { parseSpeedquizzing } from "./sqq.js?v=202610222247";
-import { scoreQuestion } from "./scoring.js?v=202610222247";
-import { shrink } from "./images.js?v=202610222247";
+import { db } from "./fb.js?v=202610222257";
+import { parseSpeedquizzing } from "./sqq.js?v=202610222257";
+import { scoreQuestion } from "./scoring.js?v=202610222257";
+import { shrink } from "./images.js?v=202610222257";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
