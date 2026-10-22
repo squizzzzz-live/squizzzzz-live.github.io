@@ -5,8 +5,9 @@
 
 export function startRibbons(options = {}) {
   const opts = {
-    ribbons: 5,          // Anzahl Bänder
-    strands: 4,          // Fäden pro Band
+    ribbons: 1,          // Anzahl Bänder (Martin: nur ein Strang)
+    strands: 3,          // Fäden pro Band
+    thickness: 1,        // Linienstärke-Faktor
     speed: 1,            // 1 = normal, 0.3 = ruhig (z. B. während einer Frage)
     intensity: 1,        // Helligkeit 0–1
     ...options,
@@ -26,13 +27,13 @@ export function startRibbons(options = {}) {
 
   // Zufällige, aber feste Eigenschaften je Band
   const bands = Array.from({ length: opts.ribbons }, (_, i) => ({
-    y: 0.18 + 0.64 * (i + 0.5) / opts.ribbons + (Math.random() - 0.5) * 0.08, // Grundhöhe (Anteil)
-    amp: 0.05 + Math.random() * 0.07,     // Ausschlag (Anteil der Höhe)
+    y: opts.ribbons === 1 ? 0.7 : 0.18 + 0.64 * (i + 0.5) / opts.ribbons + (Math.random() - 0.5) * 0.08, // Grundhöhe (Anteil)
+    amp: 0.09 + Math.random() * 0.04,     // Ausschlag (Anteil der Höhe)
     freq: 0.8 + Math.random() * 1.0,      // Wellen über die Breite
     drift: 0.12 + Math.random() * 0.18,   // Wandergeschwindigkeit
     twist: 0.35 + Math.random() * 0.35,   // Drehgeschwindigkeit der Fäden
-    width: 0.012 + Math.random() * 0.02,  // Bandbreite (Anteil der Höhe)
-    hue: Math.random() < 0.25 ? 18 : 33,  // überwiegend Orange (#FF8E00 ≈ 33°), ab und zu rötlicher
+    width: 0.035 + Math.random() * 0.01,  // Bandbreite (Anteil der Höhe)
+    hue: 33,  // überwiegend Orange (#FF8E00 ≈ 33°), ab und zu rötlicher
     phase: Math.random() * Math.PI * 2,
   }));
 
@@ -68,11 +69,11 @@ export function startRibbons(options = {}) {
         const alpha = (0.14 + 0.46 * depth) * opts.intensity;
         // weicher Schein …
         ctx.strokeStyle = `hsla(${b.hue}, 100%, 55%, ${alpha * 0.18})`;
-        ctx.lineWidth = 5 + depth * 5;
+        ctx.lineWidth = (10 + depth * 10) * opts.thickness;
         ctx.stroke();
         // … und heller Faden
         ctx.strokeStyle = `hsla(${b.hue}, 100%, ${58 + 17 * depth}%, ${alpha})`;
-        ctx.lineWidth = 0.8 + depth * 1.4;
+        ctx.lineWidth = (2 + depth * 3) * opts.thickness;
         ctx.stroke();
       }
     }

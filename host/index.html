@@ -44,7 +44,7 @@
   import { firebaseConfig } from "../js/firebase-config.js";
   import { startRibbons } from "../js/ribbons.js";
 
-  startRibbons({ ribbons: 6, strands: 4, intensity: 0.9 });
+  startRibbons();
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
