@@ -7,83 +7,187 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610221639">
+<link rel="stylesheet" href="../css/base.css?v=202610221707">
+<style>
+  /* Host = Mac: breites Layout */
+  .host-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 32px 60px; }
+  .host-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
+  .host-head h1 { text-align: left; margin: .2em 0 0; font-size: 2.6rem; }
+  .who { color: var(--muted); font-size: .9rem; text-align: right; }
+  .grid { display: grid; grid-template-columns: 420px 1fr; gap: 28px; margin-top: 28px; align-items: start; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 26px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .panel h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
+  .qr { background: #fff; border-radius: 18px; padding: 18px; margin-top: 16px; }
+  .qr svg { display: block; width: 100%; height: auto; }
+  .code-big { font-size: 3.2rem; font-weight: 900; letter-spacing: .25em; color: var(--orange); text-align: center; margin-top: 14px; }
+  .url { text-align: center; color: var(--muted); font-size: .95rem; margin-top: 4px; word-break: break-all; }
+  .plist { list-style: none; padding: 0; margin-top: 14px; }
+  .plist li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); font-size: 1.1rem; }
+  .plist li:last-child { border-bottom: 0; }
+  .plist .state { color: var(--muted); font-size: .85rem; margin-left: auto; margin-right: 12px; }
+  .counts { display: flex; gap: 26px; margin-top: 8px; color: var(--muted); }
+  .counts b { color: var(--text); font-size: 1.6rem; display: block; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+  .center { max-width: 520px; margin: 60px auto 0; text-align: center; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
-<main class="wrap">
-  <div class="kicker">Host</div>
-  <h1>SQUIZZZzZ</h1>
+<div class="host-wrap">
+  <header class="host-head">
+    <div><div class="kicker">Host</div><h1>SQUIZZZzZ</h1></div>
+    <div class="who hidden" id="who"></div>
+  </header>
 
-  <section id="signed-out">
+  <!-- Nicht angemeldet -->
+  <section id="v-login" class="center hidden">
     <p>Melde Dich als Host mit Deinem Google-Konto an.</p>
     <button id="login" class="btn">Mit Google anmelden</button>
   </section>
 
-  <section id="signed-in" class="hidden">
-    <p>Angemeldet. Das Spielpult kommt in der nächsten Ausbaustufe.</p>
-    <div class="card">
-      <div class="label">Name</div>
-      <div class="value" id="name"></div>
-      <div class="label">E-Mail</div>
-      <div class="value" id="email"></div>
-      <div class="label">Host-UID</div>
-      <div class="value mono" id="uid"></div>
-    </div>
-    <button id="copy" class="btn">UID kopieren</button>
-    <br>
-    <button id="logout" class="btn secondary">Abmelden</button>
+  <!-- Angemeldet, aber kein Host -->
+  <section id="v-nohost" class="center hidden">
+    <p>Dieses Konto ist nicht als Host freigeschaltet.</p>
+    <button class="btn secondary logout">Abmelden</button>
   </section>
 
-  <p id="error" class="error hidden"></p>
-</main>
+  <!-- Spiel anlegen -->
+  <section id="v-create" class="grid hidden">
+    <div class="panel">
+      <h2>Testspiel anlegen</h2>
+      <p>Ein Name pro Zeile. Später kommt die Teilnehmer- und Teamliste als Datei.</p>
+      <textarea id="names" class="field" placeholder="Martin&#10;Moritz&#10;Lisa"></textarea>
+      <button id="create" class="btn">Spiel starten</button>
+    </div>
+    <div class="panel">
+      <h2>So funktioniert's</h2>
+      <p>Nach dem Start erscheint hier ein QR-Code. Die Spieler scannen ihn mit dem Handy, tippen ihren Namen an – und Du siehst live, wer drin ist.</p>
+    </div>
+  </section>
 
+  <!-- Lobby -->
+  <section id="v-lobby" class="grid hidden">
+    <div class="panel">
+      <h2>Mitspielen</h2>
+      <p>QR-Code scannen oder Code eingeben:</p>
+      <div class="qr" id="qr"></div>
+      <div class="code-big" id="code"></div>
+      <div class="url">squizzzzz-live.github.io</div>
+    </div>
+    <div class="panel">
+      <h2>Spieler</h2>
+      <div class="counts">
+        <div><b id="c-in">0</b>angemeldet</div>
+        <div><b id="c-on">0</b>online</div>
+        <div><b id="c-all">0</b>Teilnehmer</div>
+      </div>
+      <ul class="plist" id="plist"></ul>
+      <div class="row">
+        <button id="end" class="btn danger small">Spiel beenden &amp; löschen</button>
+      </div>
+    </div>
+  </section>
+
+  <p id="error" class="error hidden" style="text-align:center"></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+  import { startRibbons } from "../js/ribbons.js?v=202610221707";
+  import { auth, db, HOST_UID, APP_URL } from "../js/fb.js?v=202610221707";
+  import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { firebaseConfig } from "../js/firebase-config.js?v=202610221639";
-  import { startRibbons } from "../js/ribbons.js?v=202610221639";
+  import { ref, get, set, remove, onValue, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   startRibbons();
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
   const $ = (id) => document.getElementById(id);
+  const views = ["v-login", "v-nohost", "v-create", "v-lobby"];
+  const show = (v) => views.forEach((id) => $(id).classList.toggle("hidden", id !== v));
+  const err = (t) => { $("error").textContent = t || ""; $("error").classList.toggle("hidden", !t); };
+  const store = {
+    get() { try { return localStorage.getItem("sqz-host-game"); } catch { return null; } },
+    set(v) { try { v ? localStorage.setItem("sqz-host-game", v) : localStorage.removeItem("sqz-host-game"); } catch {} },
+  };
+  let game = null, unsub = [], roster = {}, claims = {}, presence = {};
 
-  function showError(msg) { $("error").textContent = msg; $("error").classList.remove("hidden"); }
-
-  onAuthStateChanged(auth, (user) => {
-    const loggedIn = !!user && !user.isAnonymous;
-    $("signed-out").classList.toggle("hidden", loggedIn);
-    $("signed-in").classList.toggle("hidden", !loggedIn);
-    if (loggedIn) {
-      $("name").textContent = user.displayName || "–";
-      $("email").textContent = user.email || "–";
-      $("uid").textContent = user.uid;
-    }
+  onAuthStateChanged(auth, async (user) => {
+    if (!user || user.isAnonymous) { $("who").classList.add("hidden"); return show("v-login"); }
+    $("who").textContent = user.displayName || user.email; $("who").classList.remove("hidden");
+    if (user.uid !== HOST_UID) return show("v-nohost");
+    const saved = store.get();
+    if (saved && (await get(ref(db, `games/${saved}/public`))).exists()) openLobby(saved);
+    else { store.set(null); show("v-create"); }
   });
 
   $("login").addEventListener("click", async () => {
-    $("login").disabled = true; $("login").textContent = "Anmeldung läuft …";
-    $("error").classList.add("hidden");
+    err("");
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+    catch (e) { err("Anmeldung fehlgeschlagen: " + (e.code || e.message)); }
+  });
+  document.querySelectorAll(".logout").forEach((b) => b.addEventListener("click", () => signOut(auth)));
+
+  const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne 0/O, 1/I – leicht abzutippen
+  const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (n) => ALPH[n % ALPH.length]).join("");
+
+  $("create").addEventListener("click", async () => {
+    err("");
+    const names = [...new Set($("names").value.split("\n").map((s) => s.trim()).filter(Boolean))];
+    if (!names.length) return err("Bitte mindestens einen Namen eintragen.");
+    const btn = $("create"); btn.disabled = true; btn.textContent = "Wird angelegt …";
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-    } catch (e) {
-      showError("Anmeldung fehlgeschlagen: " + (e.code || e.message));
-    } finally {
-      $("login").disabled = false; $("login").textContent = "Mit Google anmelden";
-    }
+      let code; do { code = newCode(); } while ((await get(ref(db, `games/${code}/public`))).exists());
+      const rosterObj = {};
+      names.forEach((n, i) => (rosterObj["p" + String(i + 1).padStart(2, "0")] = { name: n.slice(0, 40) }));
+      await set(ref(db, `games/${code}`), {
+        public: { state: "lobby", title: "Testspiel", createdAt: serverTimestamp() },
+        roster: rosterObj,
+      });
+      store.set(code); openLobby(code);
+    } catch (e) { err("Spiel konnte nicht angelegt werden: " + (e.code || e.message)); }
+    finally { btn.disabled = false; btn.textContent = "Spiel starten"; }
   });
 
-  $("copy").addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText($("uid").textContent);
-      $("copy").textContent = "Kopiert ✓";
-      setTimeout(() => ($("copy").textContent = "UID kopieren"), 2000);
-    } catch { showError("Kopieren nicht möglich – bitte UID markieren und mit ⌘C kopieren."); }
-  });
+  function openLobby(code) {
+    game = code; show("v-lobby");
+    $("code").textContent = code;
+    const qr = qrcode(0, "M"); qr.addData(APP_URL + "?g=" + code); qr.make();
+    $("qr").innerHTML = qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true });
+    unsub.forEach((u) => u()); unsub = [];
+    unsub.push(onValue(ref(db, `games/${code}/roster`), (s) => { roster = s.val() || {}; renderPlayers(); }));
+    unsub.push(onValue(ref(db, `games/${code}/claims`), (s) => { claims = s.val() || {}; renderPlayers(); }));
+    unsub.push(onValue(ref(db, `games/${code}/presence`), (s) => { presence = s.val() || {}; renderPlayers(); }));
+  }
 
-  $("logout").addEventListener("click", () => signOut(auth));
+  function renderPlayers() {
+    const list = $("plist"); list.innerHTML = "";
+    let nIn = 0, nOn = 0;
+    Object.entries(roster).sort((a, b) => a[1].name.localeCompare(b[1].name, "de")).forEach(([pid, p]) => {
+      const uid = claims[pid], online = !!(uid && presence[uid]);
+      if (uid) nIn++; if (online) nOn++;
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="status-dot ${online ? "on" : ""}"></span><span class="n"></span><span class="state">${uid ? (online ? "online" : "angemeldet, offline") : "noch nicht da"}</span>`;
+      li.querySelector(".n").textContent = p.name;
+      if (uid) {
+        const b = document.createElement("button");
+        b.className = "btn secondary small"; b.textContent = "Freigeben";
+        b.title = "Namen wieder freigeben (falls sich jemand vertippt hat)";
+        b.addEventListener("click", () => remove(ref(db, `games/${game}/claims/${pid}`)));
+        li.appendChild(b);
+      }
+      list.appendChild(li);
+    });
+    $("c-in").textContent = nIn; $("c-on").textContent = nOn; $("c-all").textContent = Object.keys(roster).length;
+  }
+
+  $("end").addEventListener("click", async () => {
+    const b = $("end");
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Wirklich löschen? Nochmal klicken"; setTimeout(() => { b.dataset.confirm = ""; b.textContent = "Spiel beenden & löschen"; }, 4000); return; }
+    unsub.forEach((u) => u()); unsub = [];
+    await remove(ref(db, `games/${game}`)).catch((e) => err("Löschen fehlgeschlagen: " + e.code));
+    store.set(null); game = null; show("v-create");
+    b.dataset.confirm = ""; b.textContent = "Spiel beenden & löschen";
+  });
 </script>
 </body>
 </html>

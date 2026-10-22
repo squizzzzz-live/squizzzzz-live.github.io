@@ -4,33 +4,120 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B106C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ</title>
-<style>
-  :root { --navy:#0B106C; --navy-deep:#060945; --orange:#FF8E00; --text:#F4F5FF; }
-  * { box-sizing:border-box; margin:0; }
-  html,body { height:100%; }
-  h1, p, .kicker { text-shadow: 0 2px 18px rgba(6,9,69,.85); }
-  body {
-    background:radial-gradient(120% 90% at 50% 0%, #1921B1 0%, var(--navy) 45%, var(--navy-deep) 100%);
-    color:var(--text);
-    font-family:"Avenir Next", Avenir, "Nunito Sans", -apple-system, "Segoe UI", sans-serif;
-    display:grid; place-items:center; text-align:center; padding:24px;
-  }
-  .kicker { letter-spacing:.35em; text-transform:uppercase; font-size:.75rem; color:var(--orange); font-weight:800; }
-  h1 { font-size:clamp(2.6rem, 12vw, 4.5rem); font-weight:900; letter-spacing:.02em; margin:.4em 0 .2em; }
-  p { opacity:.8; font-size:1.05rem; }
-</style>
+<link rel="stylesheet" href="css/base.css?v=202610221707">
 </head>
 <body>
-  <main>
-    <div class="kicker">Live</div>
-    <h1>SQUIZZZzZ</h1>
-    <p>Hier entsteht die SQUIZZZzZ-App. Bald geht's los.</p>
-  </main>
+<main class="wrap">
+  <div class="kicker">Live</div>
+  <h1>SQUIZZZzZ</h1>
+
+  <!-- 1. Spielcode eingeben (falls nicht über QR-Code gekommen) -->
+  <section id="v-code" class="hidden">
+    <p>Gib den Spielcode ein, den Du auf der Leinwand siehst.</p>
+    <input id="code" class="field code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CODE">
+    <button id="code-go" class="btn">Weiter</button>
+  </section>
+
+  <!-- 2. Namen wählen -->
+  <section id="v-names" class="hidden">
+    <p>Wer bist Du? Tippe auf Deinen Namen.</p>
+    <div id="names" class="names"></div>
+  </section>
+
+  <!-- 3. Drin -->
+  <section id="v-in" class="hidden">
+    <div class="big-check">✓</div>
+    <p style="margin-top:22px">Hallo <b id="me" style="color:var(--text)"></b>, Du bist drin.</p>
+    <p>Gleich geht's los – lass diese Seite einfach offen.</p>
+    <button id="not-me" class="btn secondary small" style="margin-top:28px">Das bin ich nicht</button>
+  </section>
+
+  <p id="msg" class="hidden" style="margin-top:22px"></p>
+  <p id="error" class="error hidden"></p>
+</main>
+
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610221639";
+  import { startRibbons } from "./js/ribbons.js?v=202610221707";
+  import { auth, db } from "./js/fb.js?v=202610221707";
+  import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { ref, onValue, set, remove, onDisconnect, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
   startRibbons();
+  const $ = (id) => document.getElementById(id);
+  const views = ["v-code", "v-names", "v-in"];
+  const show = (v) => views.forEach((id) => $(id).classList.toggle("hidden", id !== v));
+  const err = (t) => { $("error").textContent = t; $("error").classList.toggle("hidden", !t); };
+  const msg = (t) => { $("msg").textContent = t; $("msg").classList.toggle("hidden", !t); };
+
+  const params = new URLSearchParams(location.search);
+  let game = (params.get("g") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  let uid = null, roster = {}, claims = {}, unsub = [];
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) { signInAnonymously(auth).catch((e) => err("Anmeldung fehlgeschlagen: " + e.code)); return; }
+    uid = user.uid;
+    game ? joinGame(game) : show("v-code");
+  });
+
+  $("code-go").addEventListener("click", () => {
+    const c = $("code").value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (c.length < 4) return err("Bitte den vollständigen Code eingeben.");
+    history.replaceState(null, "", "?g=" + c);
+    joinGame(c);
+  });
+  $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-go").click(); });
+
+  function joinGame(code) {
+    game = code; err(""); msg("Verbinde …");
+    unsub.forEach((u) => u()); unsub = [];
+    unsub.push(onValue(ref(db, `games/${game}/public`), (snap) => {
+      if (!snap.exists()) { msg(""); err("Zu diesem Code gibt es gerade kein Spiel."); show("v-code"); return; }
+      msg("");
+    }, (e) => { msg(""); err("Keine Verbindung zum Spiel (" + e.code + ")."); show("v-code"); }));
+    unsub.push(onValue(ref(db, `games/${game}/roster`), (s) => { roster = s.val() || {}; render(); }));
+    unsub.push(onValue(ref(db, `games/${game}/claims`), (s) => { claims = s.val() || {}; render(); }));
+  }
+
+  function myPlayerId() { return Object.keys(claims).find((pid) => claims[pid] === uid); }
+
+  function render() {
+    const mine = myPlayerId();
+    if (mine && roster[mine]) {
+      $("me").textContent = roster[mine].name;
+      show("v-in");
+      const pres = ref(db, `games/${game}/presence/${uid}`);
+      onDisconnect(pres).remove();
+      set(pres, true).catch(() => {});
+      return;
+    }
+    show("v-names");
+    const list = $("names"); list.innerHTML = "";
+    Object.entries(roster)
+      .sort((a, b) => a[1].name.localeCompare(b[1].name, "de"))
+      .forEach(([pid, p]) => {
+        const taken = !!claims[pid];
+        const b = document.createElement("button");
+        b.className = "name-btn"; b.disabled = taken;
+        b.innerHTML = `<span></span><span class="tag">${taken ? "vergeben" : ""}</span>`;
+        b.firstChild.textContent = p.name;
+        b.addEventListener("click", async () => {
+          b.disabled = true; b.lastChild.textContent = "Moment …";
+          try { await set(ref(db, `games/${game}/claims/${pid}`), uid); }
+          catch { err("Dieser Name ist leider schon vergeben."); b.lastChild.textContent = "vergeben"; }
+        });
+        list.appendChild(b);
+      });
+    if (!Object.keys(roster).length) msg("Noch keine Namen eingetragen – gleich nochmal versuchen.");
+  }
+
+  $("not-me").addEventListener("click", () => {
+    msg("Sag kurz misterQ Bescheid – er gibt Deinen Namen wieder frei.");
+  });
 </script>
 </body>
 </html>

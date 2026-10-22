@@ -37,3 +37,30 @@ p { color: var(--muted); line-height: 1.5; }
 /* Lesbarkeit über den bewegten Linien */
 h1, p, .kicker { text-shadow: 0 2px 18px rgba(6, 9, 69, .85); }
 .card { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+
+/* ---------- Bausteine Spieler & Host ---------- */
+.btn.small { padding: 10px 18px; font-size: .9rem; margin-top: 0; }
+.btn.danger { background: transparent; color: #FFB3B3; border: 1px solid rgba(255, 140, 140, .45); }
+.btn.block { display: block; width: 100%; }
+input.field, textarea.field {
+  width: 100%; margin-top: 10px; padding: 14px 16px; border-radius: 14px;
+  border: 1px solid var(--line); background: rgba(6, 9, 69, .55); color: var(--text);
+  font: inherit; font-size: 1.05rem;
+}
+textarea.field { min-height: 220px; resize: vertical; line-height: 1.5; }
+input.code { text-align: center; letter-spacing: .4em; text-transform: uppercase; font-weight: 800; font-size: 1.6rem; }
+.names { display: grid; gap: 12px; margin-top: 22px; }
+.name-btn {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 18px 20px; border-radius: 16px; border: 1px solid var(--line);
+  background: var(--card); color: var(--text); font: inherit; font-size: 1.15rem; font-weight: 700; cursor: pointer; text-align: left;
+}
+.name-btn:disabled { opacity: .4; cursor: not-allowed; }
+.name-btn .tag { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.big-check {
+  width: 96px; height: 96px; border-radius: 50%; margin: 10px auto 0; display: grid; place-items: center;
+  background: var(--orange); color: var(--navy-deep); font-size: 3rem; font-weight: 900;
+  box-shadow: 0 0 40px rgba(255, 142, 0, .55);
+}
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.25); margin-right: 10px; }
+.status-dot.on { background: var(--green); box-shadow: 0 0 10px rgba(0, 178, 92, .8); }
