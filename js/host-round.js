@@ -1,8 +1,9 @@
 // Host: Runde laden, Fragen steuern, auflösen, Punkte führen (Keypad).
-import { db } from "./fb.js?v=202610222324";
-import { parseSpeedquizzing } from "./sqq.js?v=202610222324";
-import { scoreQuestion } from "./scoring.js?v=202610222324";
-import { shrink } from "./images.js?v=202610222324";
+import { db } from "./fb.js?v=202610222334";
+import { parseSpeedquizzing } from "./sqq.js?v=202610222334";
+import { scoreQuestion } from "./scoring.js?v=202610222334";
+import { playBuzzer } from "./buzzer.js?v=202610222334";
+import { shrink } from "./images.js?v=202610222334";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -18,7 +19,7 @@ export function initRound(ctx) {
   function attach() {
     detach();
     unsub.push(onValue(ref(db, `${G()}/private/round`), (s) => { round = s.val(); idx = round?.idx ?? 0; render(); }));
-    unsub.push(onValue(ref(db, `${G()}/public`), (s) => { pub = s.val() || {}; subscribeAnswers(); render(); }));
+    unsub.push(onValue(ref(db, `${G()}/public`), (s) => { pub = s.val() || {}; subscribeAnswers(); subscribeBuzzes(); announce(); render(); }));
     unsub.push(onValue(ref(db, `${G()}/private/results`), (s) => { results = s.val() || {}; ctx.onResults(); render(); }));
   }
   let ansUnsub = null, ansQid = null;
@@ -27,7 +28,20 @@ export function initRound(ctx) {
     ansUnsub && ansUnsub(); ansQid = pub.questionId || null; answers = {};
     if (ansQid) ansUnsub = onValue(ref(db, `${G()}/answers/${ansQid}`), (s) => { answers = s.val() || {}; render(); });
   }
-  function detach() { unsub.forEach((u) => u()); unsub = []; ansUnsub && ansUnsub(); ansUnsub = null; ansQid = null; clearTimeout(closeTimer); clearInterval(tick); round = null; }
+  let buzzUnsub = null, buzzKey = null, buzzes = {};
+  function subscribeBuzzes() {
+    if (pub.buzzId === buzzKey) return;
+    buzzUnsub && buzzUnsub(); buzzKey = pub.buzzId || null; buzzes = {};
+    if (buzzKey) buzzUnsub = onValue(ref(db, `${G()}/buzzes/${buzzKey}`), (s) => { buzzes = s.val() || {}; pickWinner(); render(); });
+  }
+  async function pickWinner() {
+    if (pub.state !== "buzz" || !Object.keys(buzzes).length) return;
+    const [uid, ts] = Object.entries(buzzes).sort((a, b) => a[1] - b[1])[0];
+    const pid = Object.keys(ctx.claims()).find((p) => ctx.claims()[p] === uid);
+    const name = ctx.roster()[pid]?.name || "?";
+    await update(ref(db, `${G()}/public`), { state: "buzzed", buzz: { uid, pid: pid || null, name, ts } });
+  }
+  function detach() { buzzUnsub && buzzUnsub(); buzzUnsub = null; buzzKey = null; unsub.forEach((u) => u()); unsub = []; ansUnsub && ansUnsub(); ansUnsub = null; ansQid = null; clearTimeout(closeTimer); clearInterval(tick); round = null; }
 
   // ---------- Runde laden ----------
   $("round-file").addEventListener("change", (e) => {
@@ -44,7 +58,7 @@ export function initRound(ctx) {
     const btn = $("round-load"); btn.disabled = true; btn.textContent = "Wird geladen …"; ctx.err("");
     try {
       const parsed = parseSpeedquizzing(await pickedRound.text(), pickedRound.name);
-      if (parsed.mode !== "keypad") throw new Error(`„${pickedRound.name}“ ist eine ${parsed.mode === "buzzin" ? "Buzzin" : "Nearest-Wins"}-Runde – die kommen in Stufe 2. Bitte eine Keypad-Runde (.sqq) wählen.`);
+      if (parsed.mode === "nearest") throw new Error(`„${pickedRound.name}“ ist eine Nearest-Wins-Runde – die kommt als Nächstes. Bitte eine Keypad- (.sqq) oder Buzzin-Runde (.sqb) wählen.`);
       const unknown = parsed.questions.filter((q) => q.type === "unknown").length;
       if (unknown) throw new Error(`${unknown} Frage(n) haben einen unbekannten Typ – Runde nicht geladen.`);
       const titleImage = pickedTitle ? await shrink(pickedTitle, 1280, "image/jpeg", 0.85) : null;
@@ -104,12 +118,60 @@ export function initRound(ctx) {
     });
   }
 
+  // ---------- Buzzin ----------
+  let lastAnnounced = null;
+  function announce() {                                   // Buzzername über den Mac abspielen, sobald jemand dran ist
+    if (pub.state !== "buzzed" || !pub.buzz) return;
+    const key = pub.buzzId + pub.buzz.uid; if (key === lastAnnounced) return; lastAnnounced = key;
+    const p = ctx.roster()[pub.buzz.pid] || { name: pub.buzz.name };
+    playBuzzer(ctx.buzzerFor ? ctx.buzzerFor(p) : null, p.name);
+  }
+  async function openBuzz(attempt = 0) {
+    const q = current(); if (!q) return;
+    const sendq = $("b-sendq").checked;
+    await set(ref(db, `${G()}/private/current`), { qid: qid(), type: "buzz", attempt });
+    await update(ref(db, `${G()}/public`), {
+      state: "buzz", questionId: qid(), buzzId: `${qid()}_${attempt}`, buzz: null, reveal: null, qIndex: idx, qCount: round.questions.length,
+      q: { type: "buzz", text: sendq ? q.text : null, picture: sendq ? (q.picture || null) : null },
+    });
+  }
+  async function judge(correct) {
+    if (pub.state !== "buzzed" || !pub.buzz) return;
+    const q = current(), b = pub.buzz, base = `${G()}/private/results/${round.key}/${q.id}/perPlayer/${b.pid}`;
+    if (correct) {
+      await set(ref(db, base), { correct: true, points: ptsOf(q), bonus: 0 });
+      await update(ref(db, `${G()}/public`), { state: "reveal", reveal: { solution: q.solution, winner: b.name, winnerUid: b.uid } });
+      return;
+    }
+    const prev = (await get(ref(db, base))).val();
+    if (!prev?.correct) await set(ref(db, base), { correct: false, points: 0, bonus: 0 });
+    // Sperre: Spieler oder ganzes Team, für diese (und ggf. nächste) Frage
+    const until = idx + (parseInt($("lock-len").value, 10) || 2) - 1, locks = {};
+    const roster = ctx.roster(), claims = ctx.claims();
+    const team = roster[b.pid]?.team;
+    const pids = $("lock-who").value === "team" && team ? Object.keys(roster).filter((p) => roster[p].team === team) : [b.pid];
+    pids.forEach((p) => { const u = claims[p]; if (u) locks[`locks/${u}`] = { until, name: roster[p]?.name || "?", why: b.pid === p ? "falsche Antwort" : "Team hat falsch geantwortet" }; });
+    await update(ref(db, `${G()}/public`), locks);
+    const cur = (await get(ref(db, `${G()}/private/current`))).val() || {};
+    await openBuzz((cur.attempt || 0) + 1);
+  }
+  async function revealBuzz() {
+    const q = current();
+    await update(ref(db, `${G()}/public`), { state: "reveal", buzz: null, reveal: { solution: q.solution, winner: null } });
+  }
+  async function clearOldLocks(nextIdx) {
+    const locks = pub.locks || {}, upd = {};
+    Object.entries(locks).forEach(([u, l]) => { if ((l.until ?? -1) < nextIdx) upd[`locks/${u}`] = null; });
+    if (Object.keys(upd).length) await update(ref(db, `${G()}/public`), upd);
+  }
+
   async function go(delta) {
     const n = round.questions.length, next = Math.max(0, Math.min(n - 1, idx + delta));
     await update(ref(db, `${G()}/private/round`), { idx: next });
-    await update(ref(db, `${G()}/public`), { state: "ready", qIndex: next, questionId: null, q: null, reveal: null, openedAt: null });
+    await clearOldLocks(next);
+    await update(ref(db, `${G()}/public`), { state: "ready", qIndex: next, questionId: null, buzzId: null, buzz: null, q: null, reveal: null, openedAt: null });
   }
-  async function showTitle() { await update(ref(db, `${G()}/public`), { state: "ready", questionId: null, q: null, reveal: null, openedAt: null }); }
+  async function showTitle() { await update(ref(db, `${G()}/public`), { state: "ready", questionId: null, buzzId: null, buzz: null, q: null, reveal: null, openedAt: null }); }
 
   async function unloadRound() {
     const b = $("round-unload");
@@ -118,7 +180,7 @@ export function initRound(ctx) {
     clearTimeout(closeTimer);
     await remove(ref(db, `${G()}/private/round`));
     await remove(ref(db, `${G()}/private/current`));
-    await update(ref(db, `${G()}/public`), { state: "lobby", roundTitle: null, roundImage: null, qIndex: null, qCount: null, questionId: null, q: null, reveal: null, openedAt: null });
+    await update(ref(db, `${G()}/public`), { state: "lobby", roundTitle: null, roundImage: null, qIndex: null, qCount: null, questionId: null, buzzId: null, buzz: null, locks: null, q: null, reveal: null, openedAt: null });
   }
 
   function savePoints() {
@@ -136,13 +198,23 @@ export function initRound(ctx) {
   $("q-prev").addEventListener("click", () => go(-1));
   $("q-title").addEventListener("click", showTitle);
   $("round-unload").addEventListener("click", unloadRound);
+  $("b-open").addEventListener("click", () => openBuzz(0));
+  $("b-right").addEventListener("click", () => judge(true));
+  $("b-wrong").addEventListener("click", () => judge(false));
+  $("b-reveal").addEventListener("click", revealBuzz);
   document.addEventListener("keydown", (e) => {
     if (!round || !ctx.active() || e.target.closest("input, textarea, select")) return;
     if (e.code === "Space") { e.preventDefault(); primaryAction()?.(); }
+    if (current()?.type === "buzz" && pub.state === "buzzed") { if (e.key === "r" || e.key === "R") judge(true); if (e.key === "f" || e.key === "F") judge(false); }
     if (e.key === "ArrowRight" && pub.state !== "open") go(1);
     if (e.key === "ArrowLeft" && pub.state !== "open") go(-1);
   });
   function primaryAction() {
+    if (current()?.type === "buzz") {
+      if (pub.state === "ready") return () => openBuzz(0);
+      if (pub.state === "reveal") return idx < round.questions.length - 1 ? () => go(1) : null;
+      return null;
+    }
     if (pub.state === "ready") return openQuestion;
     if (pub.state === "open") return closeAnswers;
     if (pub.state === "closed") return revealAnswer;
@@ -189,7 +261,10 @@ export function initRound(ctx) {
       shownIdx = idx;
     }
 
-    const label = { ready: "Titelbild", open: "Antworten laufen", closed: "Geschlossen", reveal: "Aufgelöst", lobby: "–" }[st] || st;
+    const isBuzz = q.type === "buzz";
+    $("round-live").classList.toggle("mode-buzz", isBuzz); $("round-live").classList.toggle("mode-keypad", !isBuzz);
+    if (isBuzz) $("r-pos").textContent = `Frage ${idx + 1} von ${round.questions.length} · Buzzin`;
+    const label = { ready: "Titelbild", open: "Antworten laufen", closed: "Geschlossen", reveal: "Aufgelöst", buzz: "Buzzer offen", buzzed: "Jemand ist dran", lobby: "–" }[st] || st;
     $("r-state").textContent = label;
     $("q-open").disabled = st !== "ready";
     $("q-close").disabled = st !== "open";
@@ -198,6 +273,31 @@ export function initRound(ctx) {
     $("q-prev").disabled = st === "open" || idx === 0;
     $("q-title").disabled = st === "open" || st === "ready";
 
+    if (isBuzz) {
+      $("b-open").disabled = st !== "ready";
+      $("b-right").disabled = st !== "buzzed"; $("b-wrong").disabled = st !== "buzzed";
+      $("b-reveal").disabled = !(st === "buzz" || st === "buzzed");
+      $("q-next").disabled = st === "buzz" || st === "buzzed" || idx >= round.questions.length - 1;
+      $("q-prev").disabled = st === "buzz" || st === "buzzed" || idx === 0;
+      $("q-title").disabled = st === "buzz" || st === "buzzed" || st === "ready";
+      const win = $("b-win"), roster = ctx.roster();
+      win.classList.toggle("live", st === "buzzed");
+      win.innerHTML = st === "buzzed" && pub.buzz ? `<span></span><small>ist dran – R = richtig · F = falsch</small>` :
+        st === "buzz" ? `Buzzer sind offen …` : st === "reveal" ? (pub.reveal?.winner ? `✓ <span></span>` : "Niemand richtig") : "–";
+      if (win.querySelector("span")) win.querySelector("span").textContent = st === "buzzed" ? pub.buzz.name : pub.reveal?.winner || "";
+      const ql = $("b-queue"); ql.innerHTML = "";
+      const sorted = Object.entries(buzzes).sort((a, b) => a[1] - b[1]);
+      sorted.forEach(([u, t], i) => { const pid = Object.keys(ctx.claims()).find((p) => ctx.claims()[p] === u); const li = document.createElement("li"); li.textContent = (roster[pid]?.name || "?") + (i ? `  (+${((t - sorted[0][1]) / 1000).toFixed(2).replace(".", ",")} s)` : ""); ql.appendChild(li); });
+      $("b-count").textContent = sorted.length ? `${sorted.length} gebuzzert` : "";
+      const lk = $("b-locks"); lk.innerHTML = "";
+      Object.entries(pub.locks || {}).forEach(([u, l]) => {
+        const li = document.createElement("li"); li.innerHTML = `<span></span><button class="btn secondary small">Aufheben</button>`;
+        li.firstChild.textContent = `${l.name} · bis Frage ${l.until + 1}`;
+        li.lastChild.onclick = () => set(ref(db, `${G()}/public/locks/${u}`), null);
+        lk.appendChild(li);
+      });
+      if (!Object.keys(pub.locks || {}).length) lk.innerHTML = `<li style="background:none;border:0;padding:0" class="small">niemand</li>`;
+    }
     clearInterval(tick);
     if (st === "open" && pub.openedAt) {
       const end = pub.openedAt + pub.duration * 1000;

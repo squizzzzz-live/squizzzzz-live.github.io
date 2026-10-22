@@ -1,10 +1,10 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610222324";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222324";
-import { initRound } from "./host-round.js?v=202610222324";
-import { initLobby } from "./host-lobby.js?v=202610222324";
-import { buzzerList, matchBuzzer, playBuzzer } from "./buzzer.js?v=202610222324";
-import { shrink } from "./images.js?v=202610222324";
+import { startRibbons } from "./ribbons.js?v=202610222334";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222334";
+import { initRound } from "./host-round.js?v=202610222334";
+import { initLobby } from "./host-lobby.js?v=202610222334";
+import { buzzerList, matchBuzzer, playBuzzer } from "./buzzer.js?v=202610222334";
+import { shrink } from "./images.js?v=202610222334";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
@@ -34,7 +34,7 @@ const G = () => `games/${game}`;
 const roundCtl = initRound({
   game: () => game, roster: () => roster, claims: () => claims, err,
   onResults: () => renderBoard(), active: () => tab() === "spiel",
-  left: () => away,
+  left: () => away, buzzerFor: (p) => buzzerFor(p),
 });
 
 // ---------- Anmeldung ----------

@@ -70,9 +70,9 @@
           }
         },
         "buzzes": {
-          "$questionId": {
+          "$buzzId": {
             "$uid": {
-              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('games').child($gameId).child('public/state').val() === 'buzz' && root.child('games').child($gameId).child('public/questionId').val() === $questionId",
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('games').child($gameId).child('public/state').val() === 'buzz' && root.child('games').child($gameId).child('public/buzzId').val() === $buzzId && !root.child('games').child($gameId).child('public/locks').child(auth.uid).exists()",
               ".validate": "newData.val() === now"
             }
           }

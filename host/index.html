@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610222324">
-<link rel="stylesheet" href="../css/host.css?v=202610222324">
+<link rel="stylesheet" href="../css/base.css?v=202610222334">
+<link rel="stylesheet" href="../css/host.css?v=202610222334">
 </head>
 <body>
 <div class="host-wrap">
@@ -157,19 +157,33 @@
         <div class="controls">
           <button id="q-prev" class="btn secondary small" title="Vorherige Frage (←)">‹</button>
           <button id="q-title" class="btn secondary small" title="Titelbild auf den Handys zeigen">Titelbild</button>
-          <button id="q-open" class="btn small">Frage zeigen</button>
-          <button id="q-close" class="btn secondary small">Schließen</button>
-          <button id="q-reveal" class="btn small">Auflösen</button>
+          <button id="q-open" class="btn small bz-hide">Frage zeigen</button>
+          <button id="q-close" class="btn secondary small bz-hide">Schließen</button>
+          <button id="q-reveal" class="btn small bz-hide">Auflösen</button>
+          <button id="b-open" class="btn small kp-hide" title="Leertaste">Buzzer freigeben</button>
+          <button id="b-right" class="btn small ok-btn kp-hide" title="Taste R">✓ Richtig</button>
+          <button id="b-wrong" class="btn small bad-btn kp-hide" title="Taste F">✗ Falsch</button>
+          <button id="b-reveal" class="btn secondary small kp-hide">Auflösen</button>
           <button id="q-next" class="btn secondary small" title="Nächste Frage (→)">Nächste ›</button>
         </div>
         <div class="settings">
-          <label>Zeit <input id="duration" type="number" min="5" max="120" value="20"> s</label>
+          <label class="bz-hide">Zeit <input id="duration" type="number" min="5" max="120" value="20"> s</label>
           <label>Punkte <input id="q-pts" type="number" min="0" max="100" value="4"></label>
-          <label>Speed <input id="q-speed" type="number" min="0" max="100" value="4"></label>
+          <label class="bz-hide">Speed <input id="q-speed" type="number" min="0" max="100" value="4"></label>
+          <label class="kp-hide">Sperre <select id="lock-who"><option value="player">Spieler</option><option value="team">ganzes Team</option></select></label>
+          <label class="kp-hide">für <select id="lock-len"><option value="2">diese + nächste Frage</option><option value="1">nur diese Frage</option></select></label>
+          <label class="kp-hide check" style="margin:0"><input type="checkbox" id="b-sendq" checked> Frage aufs Handy</label>
           <span class="small">Leertaste = nächster Schritt</span>
         </div>
-        <div class="ahead"><h2>Antworten</h2><span id="r-count" class="small"></span></div>
-        <table class="tbl answers"><tbody id="r-answers"></tbody></table>
+        <div id="buzz-box" class="kp-hide">
+          <div class="buzzwin" id="b-win"></div>
+          <div class="ahead"><h2>Buzzer-Reihenfolge</h2><span id="b-count" class="small"></span></div>
+          <ol id="b-queue" class="bqueue"></ol>
+          <div class="ahead"><h2>Gesperrt</h2></div>
+          <ul id="b-locks" class="locks"></ul>
+        </div>
+        <div class="ahead bz-hide"><h2>Antworten</h2><span id="r-count" class="small"></span></div>
+        <table class="tbl answers bz-hide"><tbody id="r-answers"></tbody></table>
         <div class="row" style="justify-content:flex-end"><button id="round-unload" class="btn danger small">Runde beenden &amp; entladen</button></div>
       </div>
     </div>
@@ -179,6 +193,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="../js/host-app.js?v=202610222324"></script>
+<script type="module" src="../js/host-app.js?v=202610222334"></script>
 </body>
 </html>

@@ -98,3 +98,16 @@
 .tbl td.bz { white-space: nowrap; }
 .tbl td.bz select { max-width: 140px; }
 .tbl td.small { white-space: nowrap; }
+
+/* Buzzin */
+#round-live.mode-keypad .kp-hide, #round-live.mode-buzz .bz-hide { display: none !important; }
+.settings select { margin-left: 6px; padding: 7px; border-radius: 10px; border: 1px solid var(--line); background: rgba(6,9,69,.55); color: var(--text); font: inherit; }
+.ok-btn { background: var(--green) !important; color: #fff !important; }
+.bad-btn { background: #E5484D !important; color: #fff !important; }
+.buzzwin { margin-top: 18px; padding: 18px; border-radius: 16px; text-align: center; font-size: 1.8rem; font-weight: 900; background: rgba(6,9,69,.5); border: 1px solid var(--line); min-height: 76px; }
+.buzzwin.live { background: rgba(255,142,0,.2); border-color: var(--orange); box-shadow: 0 0 40px rgba(255,142,0,.3); }
+.buzzwin small { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-top: 4px; }
+.bqueue { margin: 8px 0 0 22px; padding: 0; } .bqueue li { padding: 4px 0; }
+.locks { list-style: none; padding: 0; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+.locks li { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 999px; background: rgba(229,72,77,.2); border: 1px solid rgba(229,72,77,.5); }
+.locks li .btn { margin: 0; padding: 4px 10px; font-size: .8rem; }
