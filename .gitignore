@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+# Abhängigkeiten / Builds
+node_modules/
+dist/
+# lokale Firebase-Dateien und Geheimnisse – nie committen
+.firebase/
+*.local
+.env*
+firebase-debug.log
+database-debug.log
+# Quizinhalte gehören NICHT in dieses öffentliche Repository
+content/
