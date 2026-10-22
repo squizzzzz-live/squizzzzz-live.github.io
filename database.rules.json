@@ -1,0 +1,62 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "games": {
+      "$gameId": {
+        ".read": "auth != null && auth.uid === 'JIXlQDiywfTPFhtg6I2Ki2uAc7D2'",
+        ".write": "auth != null && auth.uid === 'JIXlQDiywfTPFhtg6I2Ki2uAc7D2'",
+
+        "public": {
+          ".read": "auth != null"
+        },
+
+        "roster": {
+          ".read": "auth != null"
+        },
+
+        "claims": {
+          ".read": "auth != null",
+          "$playerId": {
+            ".write": "auth != null && (auth.uid === 'JIXlQDiywfTPFhtg6I2Ki2uAc7D2' || (!data.exists() && newData.val() === auth.uid && root.child('games').child($gameId).child('roster').child($playerId).exists()))",
+            ".validate": "newData.isString() && newData.val().length < 128"
+          }
+        },
+
+        "presence": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.isBoolean() || newData.isNumber()"
+          }
+        },
+
+        "answers": {
+          "$questionId": {
+            "$uid": {
+              ".read": "auth != null && auth.uid === $uid",
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('games').child($gameId).child('public/state').val() === 'open' && root.child('games').child($gameId).child('public/questionId').val() === $questionId",
+              ".validate": "newData.hasChildren(['value', 'ms']) && newData.child('ms').isNumber() && newData.child('ms').val() >= 0 && newData.child('ms').val() < 600000",
+              "value": { ".validate": "newData.isString() && newData.val().length <= 64 || newData.isNumber()" },
+              "ms": { ".validate": true },
+              "$other": { ".validate": false }
+            }
+          }
+        },
+
+        "buzzes": {
+          "$questionId": {
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('games').child($gameId).child('public/state').val() === 'buzz' && root.child('games').child($gameId).child('public/questionId').val() === $questionId",
+              ".validate": "newData.val() === now"
+            }
+          }
+        },
+
+        "private": {
+          ".read": "auth != null && auth.uid === 'JIXlQDiywfTPFhtg6I2Ki2uAc7D2'"
+        }
+      }
+    }
+  }
+}
