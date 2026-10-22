@@ -59,7 +59,8 @@ export function parseSpeedquizzing(xmlText, fileName = "", parser = new DOMParse
     }
   });
 
-  return { title, mode, points, speedBonus, bonus: speedBonus ? [4] : [],        // Martin: Speed-Bonus 4 Punkte nur für den Schnellsten (Standard) questions, source: fileName };
+  // Speed-Bonus: Standard 4 Punkte nur für den schnellsten Richtigen (Entscheidung Martin, 22.10.2026)
+  return { title, mode, points, speedBonus, bonus: speedBonus ? [4] : [], questions, source: fileName };
 }
 
 export function toNumber(v) {
