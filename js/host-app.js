@@ -1,8 +1,9 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610222231";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222231";
-import { initRound } from "./host-round.js?v=202610222231";
-import { shrink } from "./images.js?v=202610222231";
+import { startRibbons } from "./ribbons.js?v=202610222247";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222247";
+import { initRound } from "./host-round.js?v=202610222247";
+import { initLobby } from "./host-lobby.js?v=202610222247";
+import { shrink } from "./images.js?v=202610222247";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
@@ -10,7 +11,7 @@ import { ref, get, set, update, remove, onValue, serverTimestamp }
 
 startRibbons();
 const $ = (id) => document.getElementById(id);
-const VIEWS = ["v-login", "v-nohost", "v-new", "v-spieler", "v-rezeption", "v-spiel"];
+const VIEWS = ["v-login", "v-nohost", "v-new", "v-spieler", "v-rezeption", "v-warteseite", "v-spiel"];
 const show = (v) => VIEWS.forEach((id) => $(id).classList.toggle("hidden", id !== v));
 const err = (t) => { $("error").textContent = t || ""; $("error").classList.toggle("hidden", !t); };
 const store = {
@@ -23,7 +24,7 @@ const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (n) => ALPH[n % ALPH.length]).join("");
 
 let game = null, unsub = [], pub = {}, roster = {}, claims = {}, presence = {}, teams = {}, nameIndex = {}, away = {};
-let isHost = false, boardMode = "players";
+let isHost = false, boardMode = "players", lobbyStarted = false;
 const G = () => `games/${game}`;
 
 const roundCtl = initRound({
@@ -39,6 +40,7 @@ onAuthStateChanged(auth, async (user) => {
   $("who").classList.toggle("hidden", !user || user.isAnonymous);
   if (!user || user.isAnonymous) return show("v-login");
   if (!isHost) return show("v-nohost");
+  if (!lobbyStarted) { lobbyStarted = true; initLobby(err); }
   const saved = store.get();
   if (saved && (await get(ref(db, `games/${saved}/public`))).exists()) openGame(saved);
   else { store.set(null); noGame(); }
@@ -108,7 +110,7 @@ async function repairIndex() {
 const tab = () => (location.hash || "#rezeption").slice(1);
 function route() {
   if (!game) return;
-  const t = ["spieler", "rezeption", "spiel"].includes(tab()) ? tab() : "rezeption";
+  const t = ["spieler", "rezeption", "warteseite", "spiel"].includes(tab()) ? tab() : "rezeption";
   document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === t));
   show("v-" + t); renderAll();
 }

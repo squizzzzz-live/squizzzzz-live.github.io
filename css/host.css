@@ -86,3 +86,12 @@
 .answers td.left { color: #FFC46B; font-size: .85rem; }
 
 @media (max-width: 1050px) { .cols2, .cols-rec, .cols-game { grid-template-columns: 1fr; } .host-head { grid-template-columns: 1fr; } .tabs { justify-self: start; } }
+
+/* Warteseite */
+.slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+.slide { position: relative; border-radius: 12px; overflow: hidden; background: rgba(6,9,69,.5); border: 1px solid var(--line); aspect-ratio: 9 / 13; display: flex; align-items: center; justify-content: center; text-align: center; }
+.slide img { width: 100%; height: 100%; object-fit: cover; }
+.slide .txt { padding: 12px; font-weight: 800; font-size: .95rem; overflow-wrap: anywhere; }
+.slide .bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; gap: 4px; padding: 6px; background: linear-gradient(transparent, rgba(0,0,0,.7)); }
+.slide .bar button { background: rgba(255,255,255,.15); border: 0; color: #fff; border-radius: 8px; padding: 4px 9px; cursor: pointer; font: inherit; font-weight: 800; }
+.slide .bar button.del { background: rgba(229,72,77,.7); }

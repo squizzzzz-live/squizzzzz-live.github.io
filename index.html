@@ -35,10 +35,28 @@
   .keypad button { aspect-ratio: auto; padding: 16px 0; }
   .keypad .ok { background: var(--orange); color: var(--navy-deep); }
   .myans { color: var(--text); font-weight: 700; margin-top: 8px; }
+  body.in-wait .wrap { padding-top: 14px; }
+  body.in-wait .wrap > .kicker, body.in-wait .wrap > h1 { display: none; }
+  .wait-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 800; }
+  .me-name { font-size: 1.05rem; }
+  .me-team { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--orange); text-align: right; }
+  .stage { position: relative; height: calc(100svh - 150px); min-height: 380px; margin-top: 14px; }
+  .sl { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; transition: opacity .8s ease; padding: 10px; }
+  .sl.on { opacity: 1; }
+  .sl img.full { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 18px; }
+  .sl .quote { font-size: clamp(1.7rem, 8vw, 2.6rem); font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+  .sl .kick { letter-spacing: .3em; text-transform: uppercase; font-size: .8rem; color: var(--orange); font-weight: 800; margin-bottom: 14px; }
+  .sl .tlogo { width: 52vw; max-width: 240px; aspect-ratio: 1; object-fit: contain; margin-bottom: 18px; filter: drop-shadow(0 10px 30px rgba(0,0,0,.4)); }
+  .sl .tname { font-size: clamp(1.8rem, 8vw, 2.6rem); font-weight: 900; }
+  .sl .tmem { margin-top: 12px; color: var(--muted); font-size: 1.05rem; line-height: 1.6; }
+  .ticker { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); background: rgba(6,9,69,.85); border-top: 1px solid rgba(255,142,0,.5); overflow: hidden; white-space: nowrap; z-index: 5; }
+  .ticker span { display: inline-block; padding-left: 100%; color: var(--orange); font-weight: 800; animation: tick var(--dur, 18s) linear infinite; }
+  @keyframes tick { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  @media (prefers-reduced-motion: reduce) { .ticker span { animation: none; padding-left: 16px; } }
   .big-check.bad { background: #E5484D; color: #fff; box-shadow: 0 0 40px rgba(229,72,77,.5); }
   .big-check.none { background: rgba(255,255,255,.15); color: var(--text); box-shadow: none; }
 </style>
-<link rel="stylesheet" href="css/base.css?v=202610222231">
+<link rel="stylesheet" href="css/base.css?v=202610222247">
 </head>
 <body>
 <main class="wrap">
@@ -66,12 +84,13 @@
     </div>
   </section>
 
-  <!-- 3. Drin -->
+  <!-- 3. Warteseite -->
   <section id="v-in" class="hidden">
-    <div class="big-check">✓</div>
-    <p style="margin-top:22px">Hallo <b id="me" style="color:var(--text)"></b>, Du bist drin.</p>
-    <p id="in-sub">Gleich geht's los – lass diese Seite einfach offen.</p>
+    <div class="wait-head"><span id="me" class="me-name"></span><span id="me-team" class="me-team"></span></div>
+    <div id="stage" class="stage"></div>
+    <p id="in-sub" class="hidden"></p>
   </section>
+  <div id="ticker" class="ticker hidden"><span id="ticker-text"></span></div>
 
   <!-- Titelkarte der Runde (zwischen den Fragen) -->
   <section id="v-title" class="hidden">
@@ -117,9 +136,9 @@
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610222231";
-  import { auth, db } from "./js/fb.js?v=202610222231";
-  import { isCorrect } from "./js/scoring.js?v=202610222231";
+  import { startRibbons } from "./js/ribbons.js?v=202610222247";
+  import { auth, db } from "./js/fb.js?v=202610222247";
+  import { isCorrect } from "./js/scoring.js?v=202610222247";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -127,14 +146,14 @@
   const ribbons = startRibbons();
   const $ = (id) => document.getElementById(id);
   const views = ["v-code", "v-names", "v-in", "v-title", "v-q", "v-sent", "v-reveal"];
-  const show = (v) => { views.forEach((id) => $(id).classList.toggle("hidden", id !== v)); document.body.classList.toggle("in-question", v === "v-q"); };
+  const show = (v) => { views.forEach((id) => $(id).classList.toggle("hidden", id !== v)); document.body.classList.toggle("in-question", v === "v-q"); document.body.classList.toggle("in-wait", v === "v-in"); $("ticker").classList.toggle("hidden", v !== "v-in" || !lobby.ticker); if (v !== "v-in") stopSlides(); };
   const err = (t) => { $("error").textContent = t; $("error").classList.toggle("hidden", !t); };
   const msg = (t) => { $("msg").textContent = t; $("msg").classList.toggle("hidden", !t); };
 
   const params = new URLSearchParams(location.search);
   let game = (params.get("g") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   let uid = null, roster = {}, claims = {}, unsub = [], exists = false, loaded = false, watchdog = 0, allowGuests = false;
-  let pub = {}, myAnswers = {}, shownQid = null, shownAt = 0, timerRaf = 0;
+  let pub = {}, myAnswers = {}, shownQid = null, shownAt = 0, timerRaf = 0, teams = {}, lobby = {};
 
   onAuthStateChanged(auth, (user) => {
     if (!user) { signInAnonymously(auth).catch((e) => err("Anmeldung fehlgeschlagen: " + e.code)); return; }
@@ -163,6 +182,8 @@
     }, (e) => { msg(""); err("Keine Verbindung zum Spiel (" + e.code + ")."); show("v-code"); }));
     unsub.push(onValue(ref(db, `games/${game}/roster`), (s) => { roster = s.val() || {}; render(); }));
     unsub.push(onValue(ref(db, `games/${game}/claims`), (s) => { claims = s.val() || {}; render(); }));
+    unsub.push(onValue(ref(db, `games/${game}/teams`), (s) => { teams = s.val() || {}; render(); }));
+    unsub.push(onValue(ref(db, `lobby`), (s) => { lobby = s.val() || {}; render(); }, () => {}));
   }
 
   let presenceSet = false;
@@ -205,6 +226,54 @@
   }
 
 
+
+  // ---------- Warteseite: Diashow ----------
+  let slideKey = "", slideIdx = 0, slideTimer = 0;
+  function stopSlides() { clearInterval(slideTimer); slideTimer = 0; slideKey = ""; }
+  function renderWait(mine) {
+    const me = roster[mine] || {}, team = me.team && teams[me.team];
+    $("me-team").textContent = team ? team.name : "";
+    const tk = lobby.ticker || "";
+    $("ticker-text").textContent = tk; $("ticker").classList.toggle("hidden", !tk);
+    $("ticker-text").style.setProperty("--dur", Math.max(12, tk.length * 0.28) + "s");
+
+    const list = [];
+    if (lobby.hello !== false) list.push({ kind: "hello", name: me.name, team });
+    Object.values(lobby.slides || {}).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach((sl) => list.push({ kind: sl.type, ...sl }));
+    if (lobby.teams !== false) Object.entries(teams).sort((a, b) => a[1].name.localeCompare(b[1].name, "de")).forEach(([tid, t]) => {
+      const mem = Object.values(roster).filter((p) => p.team === tid).map((p) => p.name).sort((a, b) => a.localeCompare(b, "de"));
+      list.push({ kind: "team", name: t.name, logo: t.logo, members: mem });
+    });
+    if (!list.length) list.push({ kind: "text", text: "Gleich geht's los!" });
+
+    const key = JSON.stringify(list.map((x) => [x.kind, x.name, x.text, (x.image || "").length, (x.logo || "").length, (x.members || []).join()])) + (lobby.interval || 7);
+    if (key === slideKey) return;
+    slideKey = key;
+    const stage = $("stage"); stage.innerHTML = "";
+    list.forEach((it) => {
+      const d = document.createElement("div"); d.className = "sl";
+      if (it.kind === "image") { const im = document.createElement("img"); im.className = "full"; im.src = it.image; d.appendChild(im); }
+      else if (it.kind === "team") {
+        if (it.logo) { const im = document.createElement("img"); im.className = "tlogo"; im.src = it.logo; d.appendChild(im); }
+        const k = document.createElement("div"); k.className = "kick"; k.textContent = "Team"; d.prepend(k);
+        const n = document.createElement("div"); n.className = "tname"; n.textContent = it.name; d.appendChild(n);
+        const m = document.createElement("div"); m.className = "tmem"; m.textContent = it.members.join(" · "); d.appendChild(m);
+      } else if (it.kind === "hello") {
+        const k = document.createElement("div"); k.className = "kick"; k.textContent = "Willkommen"; d.appendChild(k);
+        if (it.team?.logo) { const im = document.createElement("img"); im.className = "tlogo"; im.src = it.team.logo; d.appendChild(im); }
+        const n = document.createElement("div"); n.className = "quote"; n.textContent = `Hallo ${it.name}!`; d.appendChild(n);
+        const t = document.createElement("div"); t.className = "tmem"; t.textContent = it.team ? `Du spielst im Team ${it.team.name}.` : "Du bist drin – gleich geht's los."; d.appendChild(t);
+      } else { const q = document.createElement("div"); q.className = "quote"; q.textContent = it.text; d.appendChild(q); }
+      stage.appendChild(d);
+    });
+    const els = [...stage.children]; slideIdx = Math.min(slideIdx, els.length - 1);
+    els[slideIdx]?.classList.add("on");
+    clearInterval(slideTimer);
+    if (els.length > 1) slideTimer = setInterval(() => {
+      els[slideIdx].classList.remove("on"); slideIdx = (slideIdx + 1) % els.length; els[slideIdx].classList.add("on");
+    }, (lobby.interval || 7) * 1000);
+  }
+
   // ---------- Spiel ----------
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -235,8 +304,8 @@
     }
     if (!qid || st === "lobby" || st === "ready" || !pub.q) {
       cancelAnimationFrame(timerRaf); hideFull();
-      $("in-sub").textContent = "Gleich geht's los – lass diese Seite einfach offen.";
-      return show("v-in");
+      show("v-in"); renderWait(mine);
+      return;
     }
     if (myAnswers[qid] === undefined) { loadMyAnswer(qid); return; }
     const mineAns = myAnswers[qid], q = pub.q;

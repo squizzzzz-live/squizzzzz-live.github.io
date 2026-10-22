@@ -2,6 +2,10 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "lobby": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.uid === 'JIXlQDiywfTPFhtg6I2Ki2uAc7D2'"
+    },
     "games": {
       "$gameId": {
         ".read": "auth != null && auth.uid === 'JIXlQDiywfTPFhtg6I2Ki2uAc7D2'",

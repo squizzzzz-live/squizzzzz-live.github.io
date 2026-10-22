@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610222231">
-<link rel="stylesheet" href="../css/host.css?v=202610222231">
+<link rel="stylesheet" href="../css/base.css?v=202610222247">
+<link rel="stylesheet" href="../css/host.css?v=202610222247">
 </head>
 <body>
 <div class="host-wrap">
@@ -17,6 +17,7 @@
     <nav class="tabs hidden" id="tabs">
       <a href="#spieler" data-tab="spieler">Spieler</a>
       <a href="#rezeption" data-tab="rezeption">Rezeption</a>
+      <a href="#warteseite" data-tab="warteseite">Warteseite</a>
       <a href="#spiel" data-tab="spiel">Spiel</a>
     </nav>
     <div class="who"><span id="game-badge" class="badge hidden"></span><span id="who" class="hidden"></span></div>
@@ -89,6 +90,31 @@
     </div>
   </section>
 
+  <!-- Seite: Warteseite -->
+  <section id="v-warteseite" class="cols2 hidden">
+    <div class="panel">
+      <h2>Folien</h2>
+      <p class="small">Laufen auf den Handys, solange keine Runde geladen ist. Gelten für alle Abende.</p>
+      <div class="row" style="align-items:center">
+        <label class="btn small" style="margin:0">Bilder hinzufügen …<input type="file" id="w-images" accept="image/*" multiple class="hidden"></label>
+        <span id="w-upload" class="small"></span>
+      </div>
+      <div class="inline" style="margin-top:14px"><input id="w-text" class="field" maxlength="140" placeholder="Spruch als Folie, z. B. „Handys raus – gleich wird's laut!“"><button id="w-text-add" class="btn small">Als Folie</button></div>
+      <div id="w-slides" class="slides"></div>
+    </div>
+    <div class="panel">
+      <h2>Einstellungen</h2>
+      <div class="label" style="margin-top:12px">Lauftext (unten durchlaufend)</div>
+      <input id="w-ticker" class="field" maxlength="300" placeholder="z. B. Willkommen bei SQUIZZZzZ! WLAN: …  ·  Gleich geht's los …">
+      <div class="settings" style="margin-top:16px">
+        <label>Folie zeigen <input id="w-interval" type="number" min="3" max="60" value="7"> s</label>
+      </div>
+      <label class="check"><input type="checkbox" id="w-teams" checked> Team-Folien automatisch zeigen (Logo, Name, Mitglieder)</label>
+      <label class="check"><input type="checkbox" id="w-hello" checked> Persönliche Begrüßung („Hallo Anna – Team …“)</label>
+      <p class="small" style="margin-top:18px">Änderungen sind sofort auf allen Handys sichtbar.</p>
+    </div>
+  </section>
+
   <!-- Seite: Spiel -->
   <section id="v-spiel" class="cols-game hidden">
     <aside class="panel">
@@ -153,6 +179,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="../js/host-app.js?v=202610222231"></script>
+<script type="module" src="../js/host-app.js?v=202610222247"></script>
 </body>
 </html>
