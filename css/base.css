@@ -11,6 +11,7 @@
   --line: rgba(255, 255, 255, .14);
 }
 * { box-sizing: border-box; margin: 0; }
+html { background: var(--navy-deep); }
 html, body { min-height: 100%; }
 body {
   background: radial-gradient(120% 90% at 50% 0%, var(--blue) 0%, var(--navy) 45%, var(--navy-deep) 100%) fixed;

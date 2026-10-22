@@ -8,7 +8,32 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ</title>
-<link rel="stylesheet" href="css/base.css?v=202610221816">
+<style>
+  .timerbar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+  #tbar { height: 100%; width: 100%; background: var(--orange); transform-origin: left; }
+  .qmeta { display: flex; justify-content: space-between; color: var(--muted); font-size: .85rem; margin-top: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .ptext { font-size: 1.35rem; font-weight: 800; line-height: 1.3; margin-top: 14px; }
+  body.in-question .wrap { padding-top: 18px; }
+  body.in-question .wrap > .kicker, body.in-question .wrap > h1 { display: none; }
+  .ppic { width: 100%; max-height: 30vh; object-fit: contain; border-radius: 14px; margin-top: 14px; background: #000; }
+  .ppic.full { position: fixed; inset: 0; max-height: none; height: 100%; border-radius: 0; z-index: 10; margin: 0; }
+  .choices { display: grid; gap: 10px; margin-top: 18px; }
+  .choice { display: flex; gap: 14px; align-items: center; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 1.1rem; font-weight: 700; text-align: left; cursor: pointer; }
+  .choice b { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 50%; background: var(--orange); color: var(--navy-deep); font-weight: 900; }
+  .choice.picked { outline: 2px solid var(--orange); background: rgba(255,142,0,.18); }
+  .choice.picked b { background: var(--text); }
+  .letters { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 18px; }
+  .letters button, .keypad button { aspect-ratio: 1; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 1.3rem; font-weight: 900; cursor: pointer; }
+  .letters button:active, .keypad button:active, .choice:active { background: rgba(255,142,0,.35); }
+  .numdisplay { margin-top: 18px; padding: 16px; border-radius: 14px; background: rgba(6,9,69,.55); border: 1px solid var(--line); font-size: 2rem; font-weight: 900; min-height: 70px; letter-spacing: .05em; }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .keypad button { aspect-ratio: auto; padding: 16px 0; }
+  .keypad .ok { background: var(--orange); color: var(--navy-deep); }
+  .myans { color: var(--text); font-weight: 700; margin-top: 8px; }
+  .big-check.bad { background: #E5484D; color: #fff; box-shadow: 0 0 40px rgba(229,72,77,.5); }
+  .big-check.none { background: rgba(255,255,255,.15); color: var(--text); box-shadow: none; }
+</style>
+<link rel="stylesheet" href="css/base.css?v=202610221840">
 </head>
 <body>
 <main class="wrap">
@@ -40,8 +65,35 @@
   <section id="v-in" class="hidden">
     <div class="big-check">✓</div>
     <p style="margin-top:22px">Hallo <b id="me" style="color:var(--text)"></b>, Du bist drin.</p>
-    <p>Gleich geht's los – lass diese Seite einfach offen.</p>
+    <p id="in-sub">Gleich geht's los – lass diese Seite einfach offen.</p>
     <button id="not-me" class="btn secondary small" style="margin-top:28px">Das bin ich nicht</button>
+  </section>
+
+  <!-- 4. Frage -->
+  <section id="v-q" class="hidden">
+    <div class="timerbar"><div id="tbar"></div></div>
+    <div class="qmeta"><span id="q-pos"></span><span id="q-time"></span></div>
+    <div id="q-text" class="ptext"></div>
+    <img id="q-pic" class="ppic hidden" alt="Bild zur Frage">
+    <div id="q-input"></div>
+  </section>
+
+  <!-- 5. Antwort abgeschickt / Zeit um -->
+  <section id="v-sent" class="hidden">
+    <div class="big-check" id="sent-icon">✓</div>
+    <p style="margin-top:20px" id="sent-text">Antwort ist angekommen</p>
+    <p class="myans" id="sent-ans"></p>
+  </section>
+
+  <!-- 6. Auflösung -->
+  <section id="v-reveal" class="hidden">
+    <div class="big-check" id="rv-icon">✓</div>
+    <h2 id="rv-title" style="margin-top:18px;font-size:1.8rem;font-weight:900"></h2>
+    <p class="myans" id="rv-mine"></p>
+    <div class="card" style="text-align:center">
+      <div class="label">Lösung</div><div class="value" id="rv-solution"></div>
+      <div class="label" style="margin-top:16px">Am schnellsten</div><div class="value" id="rv-fast"></div>
+    </div>
   </section>
 
   <p id="msg" class="hidden" style="margin-top:22px"></p>
@@ -50,22 +102,24 @@
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610221816";
-  import { auth, db } from "./js/fb.js?v=202610221816";
+  import { startRibbons } from "./js/ribbons.js?v=202610221840";
+  import { auth, db } from "./js/fb.js?v=202610221840";
+  import { isCorrect } from "./js/scoring.js?v=202610221840";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  startRibbons();
+  const ribbons = startRibbons();
   const $ = (id) => document.getElementById(id);
-  const views = ["v-code", "v-names", "v-in"];
-  const show = (v) => views.forEach((id) => $(id).classList.toggle("hidden", id !== v));
+  const views = ["v-code", "v-names", "v-in", "v-q", "v-sent", "v-reveal"];
+  const show = (v) => { views.forEach((id) => $(id).classList.toggle("hidden", id !== v)); document.body.classList.toggle("in-question", v === "v-q"); };
   const err = (t) => { $("error").textContent = t; $("error").classList.toggle("hidden", !t); };
   const msg = (t) => { $("msg").textContent = t; $("msg").classList.toggle("hidden", !t); };
 
   const params = new URLSearchParams(location.search);
   let game = (params.get("g") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   let uid = null, roster = {}, claims = {}, unsub = [], exists = false, loaded = false, watchdog = 0, allowGuests = false;
+  let pub = {}, myAnswers = {}, shownQid = null, shownAt = 0, timerRaf = 0;
 
   onAuthStateChanged(auth, (user) => {
     if (!user) { signInAnonymously(auth).catch((e) => err("Anmeldung fehlgeschlagen: " + e.code)); return; }
@@ -87,7 +141,7 @@
     watchdog = setTimeout(() => { if (!loaded) { msg("Die Verbindung hakt gerade."); $("retry").classList.remove("hidden"); } }, 7000);
     unsub.forEach((u) => u()); unsub = [];
     unsub.push(onValue(ref(db, `games/${game}/public`), (snap) => {
-      exists = snap.exists(); loaded = true; allowGuests = !!(snap.val() && snap.val().allowGuests); clearTimeout(watchdog); $("retry").classList.add("hidden");
+      exists = snap.exists(); loaded = true; pub = snap.val() || {}; allowGuests = !!pub.allowGuests; clearTimeout(watchdog); $("retry").classList.add("hidden");
       msg("");
       if (!exists) { err("Zu diesem Code gibt es gerade kein Spiel."); $("code").value = game; show("v-code"); return; }
       err(""); render();
@@ -96,6 +150,7 @@
     unsub.push(onValue(ref(db, `games/${game}/claims`), (s) => { claims = s.val() || {}; render(); }));
   }
 
+  let presenceSet = false;
   function myPlayerId() { return Object.keys(claims).find((pid) => claims[pid] === uid); }
 
   function render() {
@@ -103,12 +158,16 @@
     const mine = myPlayerId();
     if (mine && roster[mine]) {
       $("me").textContent = roster[mine].name;
-      show("v-in");
-      const pres = ref(db, `games/${game}/presence/${uid}`);
-      onDisconnect(pres).remove();
-      set(pres, true).catch(() => {});
+      if (!presenceSet) {
+        presenceSet = true;
+        const pres = ref(db, `games/${game}/presence/${uid}`);
+        onDisconnect(pres).remove();
+        set(pres, true).catch(() => { presenceSet = false; });
+      }
+      renderGame(mine);
       return;
     }
+    presenceSet = false;
     show("v-names");
     $("guest-box").classList.toggle("hidden", !allowGuests);
     const list = $("names"); list.innerHTML = "";
@@ -129,6 +188,143 @@
       });
     msg(Object.keys(roster).length ? "" : "Noch keine Namen eingetragen – gleich nochmal versuchen.");
   }
+
+
+  // ---------- Spiel ----------
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  async function loadMyAnswer(qid) {
+    if (myAnswers[qid] !== undefined) return;
+    try { const s = await get(ref(db, `games/${game}/answers/${qid}/${uid}`)); myAnswers[qid] = s.exists() ? s.val() : null; }
+    catch { myAnswers[qid] = null; }
+    render();
+  }
+
+  function fmt(type, value, options) {
+    if (value === null || value === undefined) return "";
+    if (type === "multi" && options) { const i = String(value).charCodeAt(0) - 65; return `${value} · ${options[i] ?? ""}`; }
+    if (type === "sequence" && options) return String(value).split(",").map((i) => options[+i]).join(" → ");
+    return String(value);
+  }
+
+  function renderGame(mine) {
+    const st = pub.state, qid = pub.questionId;
+    ribbons.setSpeed(st === "open" ? 0.3 : 1);
+    if (!qid || st === "lobby" || st === "ready" || !pub.q) {
+      cancelAnimationFrame(timerRaf);
+      $("in-sub").textContent = pub.roundTitle ? `Nächste Runde: ${pub.roundTitle} – gleich geht's los.` : "Gleich geht's los – lass diese Seite einfach offen.";
+      return show("v-in");
+    }
+    if (myAnswers[qid] === undefined) { loadMyAnswer(qid); return; }
+    const mineAns = myAnswers[qid], q = pub.q;
+
+    if (st === "reveal" && pub.reveal) {
+      cancelAnimationFrame(timerRaf);
+      const answered = mineAns && mineAns.value !== undefined;
+      const ok = answered && isCorrect(q.type, pub.reveal.key, mineAns.value);
+      $("rv-icon").textContent = !answered ? "–" : ok ? "✓" : "✗";
+      $("rv-icon").className = "big-check" + (!answered ? " none" : ok ? "" : " bad");
+      $("rv-title").textContent = !answered ? "Keine Antwort" : ok ? "Richtig!" : "Leider falsch";
+      $("rv-mine").textContent = answered ? "Deine Antwort: " + fmt(q.type, mineAns.value, q.options) : "";
+      $("rv-solution").textContent = pub.reveal.solution || "";
+      const f = pub.reveal.fastest;
+      $("rv-fast").textContent = f ? `${f.name} · ${(f.ms / 1000).toFixed(2).replace(".", ",")} s` : "niemand richtig";
+      return show("v-reveal");
+    }
+    if (mineAns) {                                            // schon geantwortet
+      $("sent-icon").textContent = "✓"; $("sent-icon").className = "big-check";
+      $("sent-text").textContent = "Antwort ist angekommen";
+      $("sent-ans").textContent = fmt(q.type, mineAns.value, q.options);
+      return show("v-sent");
+    }
+    if (st !== "open") {                                      // Zeit um, keine Antwort
+      cancelAnimationFrame(timerRaf);
+      $("sent-icon").textContent = "⏱"; $("sent-icon").className = "big-check none";
+      $("sent-text").textContent = "Zeit ist um"; $("sent-ans").textContent = "";
+      return show("v-sent");
+    }
+    if (shownQid !== qid) buildQuestion(qid, q);
+    show("v-q");
+  }
+
+  function buildQuestion(qid, q) {
+    shownQid = qid; shownAt = performance.now();
+    $("q-pos").textContent = `Frage ${pub.qIndex + 1} von ${pub.qCount}`;
+    $("q-text").textContent = q.text || "";
+    const pic = $("q-pic"); pic.classList.remove("full");
+    pic.classList.toggle("hidden", !q.picture); if (q.picture) pic.src = q.picture;
+    const box = $("q-input"); box.innerHTML = "";
+    if (q.type === "multi") {
+      const wrap = document.createElement("div"); wrap.className = "choices";
+      q.options.forEach((o, i) => {
+        const L = String.fromCharCode(65 + i), b = document.createElement("button");
+        b.className = "choice"; b.innerHTML = `<b>${L}</b><span></span>`; b.lastChild.textContent = o;
+        b.onclick = () => submit(qid, L, b); wrap.appendChild(b);
+      });
+      box.appendChild(wrap);
+    } else if (q.type === "letters") {
+      const wrap = document.createElement("div"); wrap.className = "letters";
+      LETTERS.forEach((L) => { const b = document.createElement("button"); b.textContent = L; b.onclick = () => submit(qid, L, b); wrap.appendChild(b); });
+      box.appendChild(wrap);
+    } else if (q.type === "numbers") {
+      let val = "";
+      const d = document.createElement("div"); d.className = "numdisplay"; d.textContent = " ";
+      const kp = document.createElement("div"); kp.className = "keypad";
+      ["1","2","3","4","5","6","7","8","9",",","0","⌫"].forEach((k) => {
+        const b = document.createElement("button"); b.textContent = k;
+        b.onclick = () => { if (k === "⌫") val = val.slice(0, -1); else if (val.length < 12 && !(k === "," && val.includes(","))) val += k; d.textContent = val || " "; };
+        kp.appendChild(b);
+      });
+      const ok = document.createElement("button"); ok.className = "btn block"; ok.textContent = "Antwort senden";
+      ok.onclick = () => { if (val && val !== ",") submit(qid, val, ok); };
+      box.append(d, kp, ok);
+    } else if (q.type === "sequence") {
+      let order = [];
+      const wrap = document.createElement("div"); wrap.className = "choices";
+      const btns = q.options.map((o, i) => {
+        const b = document.createElement("button"); b.className = "choice"; b.innerHTML = `<b></b><span></span>`; b.lastChild.textContent = o;
+        b.onclick = () => { if (order.includes(i)) order = order.filter((x) => x !== i); else order.push(i); paint(); };
+        wrap.appendChild(b); return b;
+      });
+      const send = document.createElement("button"); send.className = "btn block"; send.textContent = "Reihenfolge senden"; send.disabled = true;
+      function paint() {
+        btns.forEach((b, i) => { const pos = order.indexOf(i); b.firstChild.textContent = pos >= 0 ? pos + 1 : ""; b.classList.toggle("picked", pos >= 0); });
+        send.disabled = order.length !== q.options.length;
+      }
+      send.onclick = () => submit(qid, order.join(","), send);
+      const hint = document.createElement("p"); hint.style.marginTop = "12px"; hint.textContent = "Tippe in der richtigen Reihenfolge – nochmal tippen nimmt es zurück.";
+      box.append(hint, wrap, send); paint();
+    }
+    runTimer();
+  }
+
+  function runTimer() {
+    cancelAnimationFrame(timerRaf);
+    const total = (pub.duration || 20) * 1000;
+    const step = () => {
+      const left = Math.max(0, total - (performance.now() - shownAt));
+      $("tbar").style.transform = `scaleX(${left / total})`;
+      $("q-time").textContent = Math.ceil(left / 1000) + " s";
+      if (left > 0 && pub.state === "open") timerRaf = requestAnimationFrame(step);
+    };
+    step();
+  }
+
+  async function submit(qid, value, btn) {
+    if (myAnswers[qid]) return;
+    const ms = Math.round(Math.min(performance.now() - shownAt, (pub.duration || 20) * 1000));
+    document.querySelectorAll("#q-input button").forEach((b) => (b.disabled = true));
+    btn.classList?.add("picked");
+    try {
+      await set(ref(db, `games/${game}/answers/${qid}/${uid}`), { value, ms });
+      myAnswers[qid] = { value, ms }; render();
+    } catch {
+      err("Antwort kam nicht mehr an – die Zeit war wohl schon um.");
+      myAnswers[qid] = null; render();
+    }
+  }
+
+  $("q-pic").addEventListener("click", (e) => e.target.classList.toggle("full"));
 
   // Eigenen Namen eintragen (wenn der Host das erlaubt)
   const cleanName = (n) => n.replace(/[.#$\[\]\/]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
