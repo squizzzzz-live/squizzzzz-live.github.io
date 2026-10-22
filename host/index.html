@@ -7,143 +7,121 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610222211">
-<style>
-  /* Host = Mac: breites Layout */
-  .host-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 32px 60px; }
-  .host-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
-  .host-head h1 { text-align: left; margin: .2em 0 0; font-size: 2.6rem; }
-  .who { color: var(--muted); font-size: .9rem; text-align: right; }
-  .grid { display: grid; grid-template-columns: 420px 1fr; gap: 28px; margin-top: 28px; align-items: start; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 26px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-  .panel h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
-  .qr { background: #fff; border-radius: 18px; padding: 18px; margin-top: 16px; }
-  .qr svg { display: block; width: 100%; height: auto; }
-  .code-big { font-size: 3.2rem; font-weight: 900; letter-spacing: .25em; color: var(--orange); text-align: center; margin-top: 14px; }
-  .url { text-align: center; color: var(--muted); font-size: .95rem; margin-top: 4px; word-break: break-all; }
-  .plist { list-style: none; padding: 0; margin-top: 14px; }
-  .plist li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); font-size: 1.1rem; }
-  .plist li:last-child { border-bottom: 0; }
-  .plist .state { color: var(--muted); font-size: .85rem; margin-left: auto; margin-right: 12px; }
-  .counts { display: flex; gap: 26px; margin-top: 8px; color: var(--muted); }
-  .counts b { color: var(--text); font-size: 1.6rem; display: block; }
-  .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
-  .center { max-width: 520px; margin: 60px auto 0; text-align: center; }
-  .grid { grid-template-columns: 360px 1fr; }
-  .qr { padding: 14px; }
-  .code-big { font-size: 2.6rem; }
-  .rhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
-  .rstate { text-align: right; color: var(--muted); }
-  .rstate b { display: block; font-size: 2.4rem; color: var(--orange); }
-  .qbox { display: grid; grid-template-columns: 1fr auto; gap: 22px; margin-top: 18px; padding: 20px; border-radius: 16px; background: rgba(6,9,69,.5); border: 1px solid var(--line); }
-  .qtext { font-size: 1.5rem; font-weight: 800; line-height: 1.3; }
-  .qpic { max-width: 260px; max-height: 260px; border-radius: 12px; object-fit: contain; background: #000; }
-  .opts { list-style: none; padding: 0; margin-top: 12px; display: grid; gap: 6px; }
-  .opts li { padding: 8px 12px; border-radius: 10px; background: var(--card); }
-  .opts li.ok { background: rgba(0,178,92,.25); outline: 1px solid var(--green); }
-  .solution { margin-top: 14px; color: var(--green); font-weight: 700; }
-  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
-  .controls .btn { margin-top: 0; }
-  .controls .btn:disabled { opacity: .35; cursor: default; }
-  .dur { margin-left: auto; color: var(--muted); }
-  .dur input { width: 64px; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: rgba(6,9,69,.55); color: var(--text); font: inherit; text-align: center; }
-  .hint { font-size: .85rem; margin-top: 10px; }
-  .ahead { display: flex; justify-content: space-between; align-items: baseline; margin-top: 22px; color: var(--muted); }
-  table.answers { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  table.answers td { padding: 9px 6px; border-bottom: 1px solid var(--line); }
-  table.answers td.ok { color: var(--green); font-weight: 900; } table.answers td.bad { color: #FF9A9A; font-weight: 900; }
-  .scores { list-style: none; padding: 0; margin-top: 12px; }
-  .scores li { display: flex; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid var(--line); }
-  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
-</style>
+<link rel="stylesheet" href="../css/base.css?v=202610222231">
+<link rel="stylesheet" href="../css/host.css?v=202610222231">
 </head>
 <body>
 <div class="host-wrap">
   <header class="host-head">
     <div><div class="kicker">Host</div><h1>SQUIZZZzZ</h1></div>
-    <div class="who hidden" id="who"></div>
+    <nav class="tabs hidden" id="tabs">
+      <a href="#spieler" data-tab="spieler">Spieler</a>
+      <a href="#rezeption" data-tab="rezeption">Rezeption</a>
+      <a href="#spiel" data-tab="spiel">Spiel</a>
+    </nav>
+    <div class="who"><span id="game-badge" class="badge hidden"></span><span id="who" class="hidden"></span></div>
   </header>
 
-  <!-- Nicht angemeldet -->
+  <!-- Nicht angemeldet / kein Host -->
   <section id="v-login" class="center hidden">
     <p>Melde Dich als Host mit Deinem Google-Konto an.</p>
     <button id="login" class="btn">Mit Google anmelden</button>
   </section>
-
-  <!-- Angemeldet, aber kein Host -->
   <section id="v-nohost" class="center hidden">
     <p>Dieses Konto ist nicht als Host freigeschaltet.</p>
     <button class="btn secondary logout">Abmelden</button>
   </section>
 
-  <!-- Spiel anlegen -->
-  <section id="v-create" class="grid hidden">
-    <div class="panel">
-      <h2>Testspiel anlegen</h2>
-      <p>Ein Name pro Zeile. Später kommt die Teilnehmer- und Teamliste als Datei.</p>
-      <textarea id="names" class="field" placeholder="Martin&#10;Moritz&#10;Lisa"></textarea>
+  <!-- Neues Spiel -->
+  <section id="v-new" class="center hidden">
+    <div class="panel" style="text-align:left">
+      <h2>Neues Spiel anlegen</h2>
+      <p>Ein Spiel ist ein ganzer Abend. Spieler, Gruppen und Runden richtest Du danach ein.</p>
+      <div class="label" style="margin-top:18px">Name des Abends</div>
+      <input id="new-title" class="field" maxlength="60" placeholder="z. B. smakfullt! Live">
       <div class="label" style="margin-top:18px">Spielcode (optional)</div>
       <input id="wish" class="field code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="z. B. SMAK" style="font-size:1.2rem">
-      <p style="font-size:.85rem;margin-top:6px">Leer lassen = zufälliger Code. Mit festem Code kannst Du den QR-Code vorab in Deine Screens einbauen. 4–6 Zeichen, Buchstaben und Ziffern 2–9.</p>
-      <button id="create" class="btn">Spiel starten</button>
-    </div>
-    <div class="panel">
-      <h2>So funktioniert's</h2>
-      <p>Nach dem Start erscheint hier ein QR-Code. Die Spieler scannen ihn mit dem Handy, tippen ihren Namen an – und Du siehst live, wer drin ist.</p>
+      <p class="small">Leer lassen = zufälliger Code. Mit festem Code kannst Du den QR-Code vorab in Deine Screens einbauen. 4–6 Zeichen, ohne 0, 1, I und O.</p>
+      <button id="create" class="btn">Spiel anlegen</button>
     </div>
   </section>
 
-  <!-- Lobby + Runde -->
-  <section id="v-lobby" class="grid hidden">
-    <div style="display:grid;gap:22px">
-      <div class="panel">
-        <h2>Mitspielen</h2>
-        <div class="qr" id="qr"></div>
-        <div class="code-big" id="code"></div>
-        <div class="url">squizzzzz-live.github.io</div>
-        <div class="row" style="justify-content:center">
-          <button id="qr-png" class="btn secondary small">QR als PNG</button>
-          <button id="qr-svg" class="btn secondary small">QR als SVG</button>
-        </div>
-      </div>
-      <div class="panel">
-        <h2>Spieler</h2>
-        <div class="counts">
-          <div><b id="c-in">0</b>angemeldet</div>
-          <div><b id="c-on">0</b>online</div>
-          <div><b id="c-all">0</b>Teilnehmer</div>
-        </div>
-        <label style="display:flex;gap:10px;align-items:center;margin-top:16px;color:var(--muted);cursor:pointer">
-          <input type="checkbox" id="allow-guests" style="width:20px;height:20px;accent-color:#FF8E00">
-          Spieler dürfen ihren Namen selbst eintragen
-        </label>
-        <ul class="plist" id="plist"></ul>
-        <div class="row">
-          <button id="end" class="btn danger small">Spiel beenden &amp; löschen</button>
-        </div>
+  <!-- Seite: Spieler -->
+  <section id="v-spieler" class="cols2 hidden">
+    <div class="panel">
+      <h2>Spieler</h2>
+      <p class="small">Namen eintragen – einer pro Zeile. Jeder Name gibt es nur einmal (Groß-/Kleinschreibung egal).</p>
+      <textarea id="add-names" class="field" style="min-height:110px" placeholder="Martin&#10;Moritz&#10;Lisa"></textarea>
+      <button id="add-btn" class="btn small" style="margin-top:12px">Hinzufügen</button>
+      <p id="add-msg" class="small hidden"></p>
+      <table class="tbl" style="margin-top:18px"><thead><tr><th></th><th>Name</th><th>Gruppe</th><th>Status</th><th></th></tr></thead><tbody id="p-rows"></tbody></table>
+    </div>
+    <div class="panel">
+      <h2>Gruppen</h2>
+      <div class="inline"><input id="team-name" class="field" maxlength="30" placeholder="Name der neuen Gruppe"><button id="team-add" class="btn small">Anlegen</button></div>
+      <div id="team-list" class="teams"></div>
+    </div>
+  </section>
+
+  <!-- Seite: Rezeption -->
+  <section id="v-rezeption" class="cols-rec hidden">
+    <div class="panel">
+      <h2>Mitspielen</h2>
+      <div class="qr" id="qr"></div>
+      <div class="code-big" id="code"></div>
+      <div class="url">squizzzzz-live.github.io</div>
+      <div class="row" style="justify-content:center">
+        <button id="qr-png" class="btn secondary small">QR als PNG</button>
+        <button id="qr-svg" class="btn secondary small">QR als SVG</button>
       </div>
     </div>
+    <div class="panel">
+      <h2>Einwahl</h2>
+      <div class="counts">
+        <div><b id="c-in">0</b>angemeldet</div>
+        <div><b id="c-on">0</b>online</div>
+        <div><b id="c-all">0</b>Teilnehmer</div>
+      </div>
+      <label class="check"><input type="checkbox" id="allow-guests"> Spieler dürfen ihren Namen selbst eintragen</label>
+      <ul class="plist" id="rec-list"></ul>
+      <p class="small" style="margin-top:16px">Tipp fürs iPhone: Über „Teilen → Zum Home-Bildschirm“ läuft die App ohne Adressleiste im Vollbild.</p>
+      <div class="row"><button id="end" class="btn danger small">Spiel beenden &amp; löschen</button></div>
+    </div>
+  </section>
+
+  <!-- Seite: Spiel -->
+  <section id="v-spiel" class="cols-game hidden">
+    <aside class="panel">
+      <div class="seg"><button id="sb-players" class="on">Spieler</button><button id="sb-teams">Gruppen</button></div>
+      <label class="check"><input type="checkbox" id="sb-show"> Punkte anzeigen</label>
+      <ul class="board" id="board"></ul>
+    </aside>
 
     <div class="panel" id="round-panel">
-      <!-- keine Runde geladen -->
       <div id="round-empty">
         <h2>Runde laden</h2>
-        <p>Wähle eine Keypad-Runde aus Deiner Fragensammlung (.sqq). Die Datei wird nur in die geschützte Datenbank übertragen – Spieler sehen jede Frage erst, wenn Du sie zeigst.</p>
-        <label class="btn" style="display:inline-block">Datei wählen …
-          <input type="file" id="round-file" accept=".sqq,.sqb,.sqn" class="hidden">
-        </label>
+        <p class="small">Wähle eine Keypad-Runde (.sqq) und optional ihr Titelbild. Ohne Bild erstellt die App eine Titelkarte. Spieler sehen jede Frage erst, wenn Du sie zeigst.</p>
+        <div class="loadrow">
+          <label class="btn small">Runde wählen …<input type="file" id="round-file" accept=".sqq,.sqb,.sqn" class="hidden"></label>
+          <span id="round-file-name" class="small">keine Datei</span>
+        </div>
+        <div class="loadrow">
+          <label class="btn secondary small">Titelbild (optional) …<input type="file" id="title-file" accept="image/*" class="hidden"></label>
+          <span id="title-file-name" class="small">kein Bild – automatische Titelkarte</span>
+        </div>
+        <button id="round-load" class="btn" disabled>Runde laden</button>
       </div>
-      <!-- Runde läuft -->
+
       <div id="round-live" class="hidden">
         <div class="rhead">
           <div>
-            <div class="kicker" style="letter-spacing:.2em" id="r-pos"></div>
-            <h2 id="r-title" style="font-size:1.5rem;margin-top:6px"></h2>
+            <div class="kicker" id="r-pos"></div>
+            <h2 id="r-title" class="rtitle"></h2>
           </div>
           <div class="rstate"><span id="r-state"></span><b id="r-timer"></b></div>
         </div>
         <div class="qbox">
-          <div>
+          <div class="qmain">
             <div id="r-text" class="qtext"></div>
             <ul id="r-opts" class="opts"></ul>
             <div id="r-solution" class="solution"></div>
@@ -152,20 +130,21 @@
         </div>
         <div class="controls">
           <button id="q-prev" class="btn secondary small" title="Vorherige Frage (←)">‹</button>
+          <button id="q-title" class="btn secondary small" title="Titelbild auf den Handys zeigen">Titelbild</button>
           <button id="q-open" class="btn small">Frage zeigen</button>
-          <button id="q-close" class="btn secondary small">Antworten schließen</button>
+          <button id="q-close" class="btn secondary small">Schließen</button>
           <button id="q-reveal" class="btn small">Auflösen</button>
           <button id="q-next" class="btn secondary small" title="Nächste Frage (→)">Nächste ›</button>
-          <label class="dur">Zeit <input id="duration" type="number" min="5" max="120" value="20"> s</label>
         </div>
-        <p class="hint">Tipp: Die <b>Leertaste</b> macht jeweils den nächsten Schritt (zeigen → schließen → auflösen → nächste Frage).</p>
-        <div class="ahead"><h2>Antworten</h2><span id="r-count"></span></div>
-        <table class="answers"><tbody id="r-answers"></tbody></table>
-        <div class="row" style="justify-content:space-between;align-items:center">
-          <button id="toggle-scores" class="btn secondary small">Punkte anzeigen</button>
-          <button id="round-unload" class="btn danger small">Runde beenden &amp; entladen</button>
+        <div class="settings">
+          <label>Zeit <input id="duration" type="number" min="5" max="120" value="20"> s</label>
+          <label>Punkte <input id="q-pts" type="number" min="0" max="100" value="4"></label>
+          <label>Speed <input id="q-speed" type="number" min="0" max="100" value="4"></label>
+          <span class="small">Leertaste = nächster Schritt</span>
         </div>
-        <ul id="scores" class="scores hidden"></ul>
+        <div class="ahead"><h2>Antworten</h2><span id="r-count" class="small"></span></div>
+        <table class="tbl answers"><tbody id="r-answers"></tbody></table>
+        <div class="row" style="justify-content:flex-end"><button id="round-unload" class="btn danger small">Runde beenden &amp; entladen</button></div>
       </div>
     </div>
   </section>
@@ -174,153 +153,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module">
-  import { startRibbons } from "../js/ribbons.js?v=202610222211";
-  import { auth, db, HOST_UID, APP_URL } from "../js/fb.js?v=202610222211";
-  import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { initRound } from "../js/host-round.js?v=202610222211";
-  import { ref, get, set, remove, onValue, serverTimestamp }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-  startRibbons();
-  const $ = (id) => document.getElementById(id);
-  const views = ["v-login", "v-nohost", "v-create", "v-lobby"];
-  const show = (v) => views.forEach((id) => $(id).classList.toggle("hidden", id !== v));
-  const err = (t) => { $("error").textContent = t || ""; $("error").classList.toggle("hidden", !t); };
-  const store = {
-    get() { try { return localStorage.getItem("sqz-host-game"); } catch { return null; } },
-    set(v) { try { v ? localStorage.setItem("sqz-host-game", v) : localStorage.removeItem("sqz-host-game"); } catch {} },
-  };
-  let game = null, unsub = [], roster = {}, claims = {}, presence = {};
-  const roundCtl = initRound({ game: () => game, roster: () => roster, claims: () => claims, presence: () => presence, err });
-
-  onAuthStateChanged(auth, async (user) => {
-    if (!user || user.isAnonymous) { $("who").classList.add("hidden"); return show("v-login"); }
-    $("who").textContent = user.displayName || user.email; $("who").classList.remove("hidden");
-    if (user.uid !== HOST_UID) return show("v-nohost");
-    const saved = store.get();
-    if (saved && (await get(ref(db, `games/${saved}/public`))).exists()) openLobby(saved);
-    else { store.set(null); show("v-create"); }
-  });
-
-  $("login").addEventListener("click", async () => {
-    err("");
-    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-    catch (e) { err("Anmeldung fehlgeschlagen: " + (e.code || e.message)); }
-  });
-  document.querySelectorAll(".logout").forEach((b) => b.addEventListener("click", () => signOut(auth)));
-
-  const cleanName = (n) => n.replace(/[.#$\[\]\/]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
-  const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne 0/O, 1/I – leicht abzutippen
-  const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (n) => ALPH[n % ALPH.length]).join("");
-
-  $("create").addEventListener("click", async () => {
-    err("");
-    const names = [...new Set($("names").value.split("\n").map((s) => s.trim()).filter(Boolean))];
-    if (!names.length) return err("Bitte mindestens einen Namen eintragen.");
-    const btn = $("create"); btn.disabled = true; btn.textContent = "Wird angelegt …";
-    try {
-      let code;
-      const wish = $("wish").value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-      if (wish) {
-        if (wish.length < 4 || /[01IO]/.test(wish)) throw new Error("Der Wunschcode braucht 4–6 Zeichen ohne 0, 1, I und O.");
-        if ((await get(ref(db, `games/${wish}/public`))).exists()) throw new Error("Unter diesem Code läuft schon ein Spiel.");
-        code = wish;
-      } else { do { code = newCode(); } while ((await get(ref(db, `games/${code}/public`))).exists()); }
-      const rosterObj = {}, nameIndex = {};
-      names.map(cleanName).filter(Boolean).forEach((n, i) => {
-        if (nameIndex[n.toLowerCase()]) return;              // doppelte Namen nur einmal
-        rosterObj["p" + String(i + 1).padStart(2, "0")] = { name: n };
-        nameIndex[n.toLowerCase()] = HOST_UID;
-      });
-      await set(ref(db, `games/${code}`), {
-        public: { state: "lobby", title: "Testspiel", allowGuests: true, createdAt: serverTimestamp() },
-        roster: rosterObj,
-        nameIndex,
-      });
-      store.set(code); openLobby(code);
-    } catch (e) { err(e.code ? "Spiel konnte nicht angelegt werden: " + e.code : e.message); }
-    finally { btn.disabled = false; btn.textContent = "Spiel starten"; }
-  });
-
-  function openLobby(code) {
-    game = code; show("v-lobby");
-    $("code").textContent = code;
-    const qr = qrcode(0, "M"); qr.addData(APP_URL + "?g=" + code); qr.make();
-    $("qr").innerHTML = qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true });
-    unsub.forEach((u) => u()); unsub = [];
-    unsub.push(onValue(ref(db, `games/${code}/roster`), (s) => { roster = s.val() || {}; renderPlayers(); }));
-    unsub.push(onValue(ref(db, `games/${code}/claims`), (s) => { claims = s.val() || {}; renderPlayers(); }));
-    unsub.push(onValue(ref(db, `games/${code}/presence`), (s) => { presence = s.val() || {}; renderPlayers(); }));
-    roundCtl.attach();
-    unsub.push(onValue(ref(db, `games/${code}/public/allowGuests`), (s) => { $("allow-guests").checked = s.val() === true; }));
-  }
-
-  function renderPlayers() {
-    const list = $("plist"); list.innerHTML = "";
-    let nIn = 0, nOn = 0;
-    Object.entries(roster).sort((a, b) => a[1].name.localeCompare(b[1].name, "de")).forEach(([pid, p]) => {
-      const uid = claims[pid], online = !!(uid && presence[uid]);
-      if (uid) nIn++; if (online) nOn++;
-      const li = document.createElement("li");
-      li.innerHTML = `<span class="status-dot ${online ? "on" : ""}"></span><span class="n"></span><span class="state">${uid ? (online ? "online" : "angemeldet, offline") : "noch nicht da"}</span>`;
-      li.querySelector(".n").textContent = p.name + (p.guest ? "  · neu, hat sich selbst eingetragen" : "");
-      if (uid) {
-        const b = document.createElement("button");
-        b.className = "btn secondary small"; b.textContent = "Abmelden";
-        b.title = "Spieler abmelden – der Name wird wieder frei (z. B. wenn sich jemand vertippt hat oder das Handy wechselt)";
-        b.addEventListener("click", () => remove(ref(db, `games/${game}/claims/${pid}`)));
-        li.appendChild(b);
-      }
-      if (p.guest) {
-        const x = document.createElement("button");
-        x.className = "btn danger small"; x.textContent = "Entfernen";
-        x.addEventListener("click", () => Promise.all([
-          remove(ref(db, `games/${game}/claims/${pid}`)),
-          remove(ref(db, `games/${game}/nameIndex/${p.name.toLowerCase()}`)),
-        ]).then(() => remove(ref(db, `games/${game}/roster/${pid}`))));
-        li.appendChild(x);
-      }
-      list.appendChild(li);
-    });
-    roundCtl.render();
-    $("c-in").textContent = nIn; $("c-on").textContent = nOn; $("c-all").textContent = Object.keys(roster).length;
-  }
-
-  // QR-Code exportieren (für Leinwand-Screens, z. B. in After Effects)
-  function qrSvg(dark = "#000000") {
-    const qr = qrcode(0, "M"); qr.addData(APP_URL + "?g=" + game); qr.make();
-    const n = qr.getModuleCount(), q = 4, size = n + 2 * q;           // 4 Module Ruhezone
-    let path = "";
-    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) path += `M${c + q},${r + q}h1v1h-1z`;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#ffffff"/><path d="${path}" fill="${dark}"/></svg>`;
-  }
-  function download(blob, name) {
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
-    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-  }
-  $("qr-svg").addEventListener("click", () => download(new Blob([qrSvg()], { type: "image/svg+xml" }), `SQUIZZZzZ-QR-${game}.svg`));
-  $("qr-png").addEventListener("click", () => {
-    const img = new Image(), px = 2048;
-    img.onload = () => {
-      const c = document.createElement("canvas"); c.width = c.height = px;
-      const x = c.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(img, 0, 0, px, px);
-      c.toBlob((b) => download(b, `SQUIZZZzZ-QR-${game}.png`), "image/png");
-    };
-    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(qrSvg());
-  });
-
-  $("allow-guests").addEventListener("change", (e) => set(ref(db, `games/${game}/public/allowGuests`), e.target.checked));
-
-  $("end").addEventListener("click", async () => {
-    const b = $("end");
-    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Wirklich löschen? Nochmal klicken"; setTimeout(() => { b.dataset.confirm = ""; b.textContent = "Spiel beenden & löschen"; }, 4000); return; }
-    unsub.forEach((u) => u()); unsub = []; roundCtl.detach();
-    await remove(ref(db, `games/${game}`)).catch((e) => err("Löschen fehlgeschlagen: " + e.code));
-    store.set(null); game = null; show("v-create");
-    b.dataset.confirm = ""; b.textContent = "Spiel beenden & löschen";
-  });
-</script>
+<script type="module" src="../js/host-app.js?v=202610222231"></script>
 </body>
 </html>

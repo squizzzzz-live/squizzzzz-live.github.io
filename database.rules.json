@@ -23,6 +23,9 @@
             ".validate": "newData.isString()"
           }
         },
+        "teams": {
+          ".read": "auth != null"
+        },
         "claims": {
           ".read": "auth != null",
           "$playerId": {
@@ -51,6 +54,14 @@
               "$other": {
                 ".validate": false
               }
+            }
+          }
+        },
+        "away": {
+          "$questionId": {
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid",
+              ".validate": "newData.isNumber() && newData.val() >= 0"
             }
           }
         },

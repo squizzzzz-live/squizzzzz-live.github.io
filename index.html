@@ -16,7 +16,12 @@
   body.in-question .wrap { padding-top: 18px; }
   body.in-question .wrap > .kicker, body.in-question .wrap > h1 { display: none; }
   .ppic { width: 100%; max-height: 30vh; object-fit: contain; border-radius: 14px; margin-top: 14px; background: #000; }
-  .ppic.full { position: fixed; inset: 0; max-height: none; height: 100%; border-radius: 0; z-index: 10; margin: 0; }
+  .pic-full { position: fixed; inset: 0; z-index: 20; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  .pic-full img { width: 100%; max-height: 86vh; object-fit: contain; }
+  .pic-full p { color: var(--muted); margin-top: 12px; font-size: .95rem; }
+  .title-img { width: 100%; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+  .title-card { margin-top: 10px; padding: 44px 22px; border-radius: 22px; background: linear-gradient(150deg, rgba(255,142,0,.25), rgba(25,33,177,.35)); border: 1px solid rgba(255,142,0,.45); box-shadow: 0 0 60px rgba(255,142,0,.25); }
+  .t-name { font-size: clamp(2rem, 9vw, 3rem); font-weight: 900; line-height: 1.1; margin-top: 14px; overflow-wrap: anywhere; }
   .choices { display: grid; gap: 10px; margin-top: 18px; }
   .choice { display: flex; gap: 14px; align-items: center; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 1.1rem; font-weight: 700; text-align: left; cursor: pointer; }
   .choice b { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 50%; background: var(--orange); color: var(--navy-deep); font-weight: 900; }
@@ -33,7 +38,7 @@
   .big-check.bad { background: #E5484D; color: #fff; box-shadow: 0 0 40px rgba(229,72,77,.5); }
   .big-check.none { background: rgba(255,255,255,.15); color: var(--text); box-shadow: none; }
 </style>
-<link rel="stylesheet" href="css/base.css?v=202610222211">
+<link rel="stylesheet" href="css/base.css?v=202610222231">
 </head>
 <body>
 <main class="wrap">
@@ -66,7 +71,16 @@
     <div class="big-check">✓</div>
     <p style="margin-top:22px">Hallo <b id="me" style="color:var(--text)"></b>, Du bist drin.</p>
     <p id="in-sub">Gleich geht's los – lass diese Seite einfach offen.</p>
-    <button id="not-me" class="btn secondary small" style="margin-top:28px">Das bin ich nicht</button>
+  </section>
+
+  <!-- Titelkarte der Runde (zwischen den Fragen) -->
+  <section id="v-title" class="hidden">
+    <img id="t-img" class="title-img hidden" alt="">
+    <div id="t-card" class="title-card hidden">
+      <div class="kicker">Nächste Runde</div>
+      <div id="t-name" class="t-name"></div>
+    </div>
+    <p id="t-sub" style="margin-top:18px">Gleich geht's los.</p>
   </section>
 
   <!-- 4. Frage -->
@@ -77,6 +91,7 @@
     <img id="q-pic" class="ppic hidden" alt="Bild zur Frage">
     <div id="q-input"></div>
   </section>
+  <div id="pic-full" class="pic-full hidden"><img id="pic-full-img" alt="Bild zur Frage"><p>Tippe aufs Bild, um zu antworten</p></div>
 
   <!-- 5. Antwort abgeschickt / Zeit um -->
   <section id="v-sent" class="hidden">
@@ -102,16 +117,16 @@
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610222211";
-  import { auth, db } from "./js/fb.js?v=202610222211";
-  import { isCorrect } from "./js/scoring.js?v=202610222211";
+  import { startRibbons } from "./js/ribbons.js?v=202610222231";
+  import { auth, db } from "./js/fb.js?v=202610222231";
+  import { isCorrect } from "./js/scoring.js?v=202610222231";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const ribbons = startRibbons();
   const $ = (id) => document.getElementById(id);
-  const views = ["v-code", "v-names", "v-in", "v-q", "v-sent", "v-reveal"];
+  const views = ["v-code", "v-names", "v-in", "v-title", "v-q", "v-sent", "v-reveal"];
   const show = (v) => { views.forEach((id) => $(id).classList.toggle("hidden", id !== v)); document.body.classList.toggle("in-question", v === "v-q"); };
   const err = (t) => { $("error").textContent = t; $("error").classList.toggle("hidden", !t); };
   const msg = (t) => { $("msg").textContent = t; $("msg").classList.toggle("hidden", !t); };
@@ -210,16 +225,24 @@
   function renderGame(mine) {
     const st = pub.state, qid = pub.questionId;
     ribbons.setSpeed(st === "open" ? 0.3 : 1);
+    if (st === "ready" && pub.roundTitle) {
+      cancelAnimationFrame(timerRaf); hideFull();
+      const img = pub.roundImage;
+      $("t-img").classList.toggle("hidden", !img); if (img) $("t-img").src = img;
+      $("t-card").classList.toggle("hidden", !!img); $("t-name").textContent = pub.roundTitle;
+      $("t-sub").textContent = pub.qIndex > 0 ? `Gleich kommt Frage ${pub.qIndex + 1} von ${pub.qCount}.` : "Gleich geht's los.";
+      return show("v-title");
+    }
     if (!qid || st === "lobby" || st === "ready" || !pub.q) {
-      cancelAnimationFrame(timerRaf);
-      $("in-sub").textContent = pub.roundTitle ? `Nächste Runde: ${pub.roundTitle} – gleich geht's los.` : "Gleich geht's los – lass diese Seite einfach offen.";
+      cancelAnimationFrame(timerRaf); hideFull();
+      $("in-sub").textContent = "Gleich geht's los – lass diese Seite einfach offen.";
       return show("v-in");
     }
     if (myAnswers[qid] === undefined) { loadMyAnswer(qid); return; }
     const mineAns = myAnswers[qid], q = pub.q;
 
     if (st === "reveal" && pub.reveal) {
-      cancelAnimationFrame(timerRaf);
+      cancelAnimationFrame(timerRaf); hideFull();
       const answered = mineAns && mineAns.value !== undefined;
       const ok = answered && isCorrect(q.type, pub.reveal.key, mineAns.value);
       $("rv-icon").textContent = !answered ? "–" : ok ? "✓" : "✗";
@@ -232,13 +255,14 @@
       return show("v-reveal");
     }
     if (mineAns) {                                            // schon geantwortet
+      hideFull();
       $("sent-icon").textContent = "✓"; $("sent-icon").className = "big-check";
       $("sent-text").textContent = "Antwort ist angekommen";
       $("sent-ans").textContent = fmt(q.type, mineAns.value, q.options);
       return show("v-sent");
     }
     if (st !== "open") {                                      // Zeit um, keine Antwort
-      cancelAnimationFrame(timerRaf);
+      cancelAnimationFrame(timerRaf); hideFull();
       $("sent-icon").textContent = "⏱"; $("sent-icon").className = "big-check none";
       $("sent-text").textContent = "Zeit ist um"; $("sent-ans").textContent = "";
       return show("v-sent");
@@ -251,8 +275,8 @@
     shownQid = qid; shownAt = performance.now();
     $("q-pos").textContent = `Frage ${pub.qIndex + 1} von ${pub.qCount}`;
     $("q-text").textContent = q.text || "";
-    const pic = $("q-pic"); pic.classList.remove("full");
-    pic.classList.toggle("hidden", !q.picture); if (q.picture) pic.src = q.picture;
+    const pic = $("q-pic");
+    pic.classList.toggle("hidden", !q.picture); if (q.picture) { pic.src = q.picture; $("pic-full-img").src = q.picture; showFull(); }
     const box = $("q-input"); box.innerHTML = "";
     if (q.type === "multi") {
       const wrap = document.createElement("div"); wrap.className = "choices";
@@ -324,7 +348,23 @@
     }
   }
 
-  $("q-pic").addEventListener("click", (e) => e.target.classList.toggle("full"));
+  // Bildfragen: erst groß, Tipp → Antwortfeld mit kleinem Bild; Tipp aufs kleine Bild → wieder groß
+  function showFull() { $("pic-full").classList.remove("hidden"); }
+  function hideFull() { $("pic-full").classList.add("hidden"); }
+  $("pic-full").addEventListener("click", hideFull);
+  $("q-pic").addEventListener("click", showFull);
+
+  // Schummel-Hinweis: Verlassen der Seite während einer offenen Frage an den Host melden
+  let awayStart = 0, awayTotal = {};
+  document.addEventListener("visibilitychange", () => {
+    const qid = pub.questionId;
+    if (!qid || pub.state !== "open" || myAnswers[qid]) { awayStart = 0; return; }
+    if (document.hidden) awayStart = Date.now();
+    else if (awayStart) {
+      awayTotal[qid] = (awayTotal[qid] || 0) + (Date.now() - awayStart); awayStart = 0;
+      set(ref(db, `games/${game}/away/${qid}/${uid}`), awayTotal[qid]).catch(() => {});
+    }
+  });
 
   // Eigenen Namen eintragen (wenn der Host das erlaubt)
   const cleanName = (n) => n.replace(/[.#$\[\]\/]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
@@ -336,6 +376,10 @@
     const key = name.toLowerCase(), pid = "g_" + uid, btn = $("guest-go");
     btn.disabled = true; btn.textContent = "Moment …";
     try {
+      // Vorab prüfen: steht der Name schon auf der Liste oder im Verzeichnis?
+      const onList = Object.entries(roster).some(([id, p]) => id !== pid && String(p.name).toLowerCase() === key);
+      const idx = (await get(ref(db, `games/${game}/nameIndex/${key}`))).val();
+      if (onList || (idx && idx !== uid)) throw new Error("taken");
       try { await set(ref(db, `games/${game}/nameIndex/${key}`), uid); }
       catch {
         const owner = (await get(ref(db, `games/${game}/nameIndex/${key}`))).val();
@@ -347,15 +391,6 @@
     } catch (e) {
       err(e.message === "taken" ? "Diesen Namen gibt es schon – nimm z. B. den ersten Buchstaben Deines Nachnamens dazu." : "Das hat nicht geklappt – bitte nochmal versuchen.");
     } finally { btn.disabled = false; btn.textContent = "Mitspielen"; }
-  });
-
-  $("not-me").addEventListener("click", async () => {
-    const pid = myPlayerId(); if (!pid) return;
-    try {
-      await remove(ref(db, `games/${game}/presence/${uid}`)).catch(() => {});
-      await remove(ref(db, `games/${game}/claims/${pid}`));
-      msg("");
-    } catch { msg("Sag kurz misterQ Bescheid – er gibt Deinen Namen wieder frei."); }
   });
 
   // Neu verbinden: Verbindung zur Datenbank kurz trennen und neu aufbauen, Listener neu setzen

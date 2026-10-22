@@ -18,7 +18,11 @@ export const ref = (db, path) => ({ path });
 export const serverTimestamp = () => TS;
 export function onValue(r, cb) { const l = { path: r.path, cb, last: undefined }; listeners.push(l); setTimeout(notify, 20); return () => { const i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
 export async function get(r) { return snap(getAt(load(), r.path)); }
-export async function set(r, v) { write((db) => setAt(db, r.path, resolveTs(JSON.parse(JSON.stringify(v ?? null))))); }
+export async function set(r, v) {
+  const host = location.pathname.includes("/host/");
+  if (!host && /\/(nameIndex|claims)\//.test(r.path) && v !== null && getAt(load(), r.path) !== null) throw Object.assign(new Error("PERMISSION_DENIED"), { code: "PERMISSION_DENIED" });
+  write((db) => setAt(db, r.path, resolveTs(JSON.parse(JSON.stringify(v ?? null)))));
+}
 export async function update(r, obj) { write((db) => { for (const [k, v] of Object.entries(obj)) setAt(db, r.path + "/" + k, resolveTs(JSON.parse(JSON.stringify(v ?? null)))); return db; }); }
 export async function remove(r) { write((db) => setAt(db, r.path, null)); }
 export const onDisconnect = () => ({ remove() {} });
