@@ -1,9 +1,10 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610222257";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222257";
-import { initRound } from "./host-round.js?v=202610222257";
-import { initLobby } from "./host-lobby.js?v=202610222257";
-import { shrink } from "./images.js?v=202610222257";
+import { startRibbons } from "./ribbons.js?v=202610222324";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222324";
+import { initRound } from "./host-round.js?v=202610222324";
+import { initLobby } from "./host-lobby.js?v=202610222324";
+import { buzzerList, matchBuzzer, playBuzzer } from "./buzzer.js?v=202610222324";
+import { shrink } from "./images.js?v=202610222324";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
@@ -24,7 +25,10 @@ const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (n) => ALPH[n % ALPH.length]).join("");
 
 let game = null, unsub = [], pub = {}, roster = {}, claims = {}, presence = {}, teams = {}, nameIndex = {}, away = {};
-let isHost = false, boardMode = "players", lobbyStarted = false;
+let isHost = false, boardMode = "players", lobbyStarted = false, buzzers = null;
+buzzerList().then((l) => { buzzers = l; renderPlayers(); });
+/** Welche Buzzer-Datei gilt für diesen Spieler? (Auswahl > automatisch > Sprachausgabe) */
+export function buzzerFor(p) { if (p.buzzer === "__tts") return null; return p.buzzer || matchBuzzer(p.name, buzzers || []); }
 const G = () => `games/${game}`;
 
 const roundCtl = initRound({
@@ -155,24 +159,35 @@ async function removePlayer(pid) {
 }
 
 function renderPlayers() {
+  if (!game) return;
   const tb = $("p-rows"); tb.innerHTML = "";
   const count = {}; Object.values(roster).forEach((p) => { const k = keyOf(p.name); count[k] = (count[k] || 0) + 1; });
   const teamOpts = Object.entries(teams).sort((a, b) => a[1].name.localeCompare(b[1].name, "de"));
   Object.entries(roster).sort((a, b) => a[1].name.localeCompare(b[1].name, "de")).forEach(([pid, p]) => {
     const uid = claims[pid], online = !!(uid && presence[uid]);
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td><span class="status-dot ${online ? "on" : ""}"></span></td><td class="n"></td><td></td><td class="small"></td><td class="actions"></td>`;
+    tr.innerHTML = `<td><span class="status-dot ${online ? "on" : ""}"></span></td><td class="n"></td><td></td><td class="bz"></td><td class="small"></td><td class="actions"></td>`;
     const nm = tr.children[1]; nm.textContent = p.name;
     if (p.guest) nm.insertAdjacentHTML("beforeend", `<span class="tag new">neu</span>`);
     if (count[keyOf(p.name)] > 1) nm.insertAdjacentHTML("beforeend", `<span class="tag warn">doppelt</span>`);
-    const sel = document.createElement("select");
+    const sel = document.createElement("select"); sel.className = "team-sel";
     sel.innerHTML = `<option value="">– keine –</option>` + teamOpts.map(([tid, t]) => `<option value="${tid}"></option>`).join("");
     teamOpts.forEach(([tid, t], i) => (sel.options[i + 1].textContent = t.name));
     sel.value = p.team && teams[p.team] ? p.team : "";
     sel.addEventListener("change", () => set(ref(db, `${G()}/roster/${pid}/team`), sel.value || null));
     tr.children[2].appendChild(sel);
-    tr.children[3].textContent = uid ? (online ? "online" : "angemeldet, offline") : "noch nicht da";
-    const acts = tr.children[4];
+    // Buzzername: automatisch zugeordnet, änderbar; ▶ zum Probehören
+    const files = buzzers || [], auto = matchBuzzer(p.name, files);
+    const bz = document.createElement("select");
+    bz.innerHTML = `<option value="">${auto ? "Auto: " + auto : "Auto: Stimme"}</option><option value="__tts">Stimme (Mac)</option>` + files.map((f) => `<option></option>`).join("");
+    files.forEach((f, i) => { bz.options[i + 2].value = f; bz.options[i + 2].textContent = f; });
+    bz.value = p.buzzer || "";
+    bz.addEventListener("change", () => set(ref(db, `${G()}/roster/${pid}/buzzer`), bz.value || null));
+    const play = document.createElement("button"); play.className = "btn secondary small"; play.textContent = "▶"; play.title = "Probehören";
+    play.style.marginLeft = "6px"; play.onclick = () => playBuzzer(buzzerFor(p), p.name);
+    tr.children[3].append(bz, play);
+    tr.children[4].textContent = uid ? (online ? "online" : "angemeldet, offline") : "noch nicht da";
+    const acts = tr.children[5];
     if (uid) { const b = document.createElement("button"); b.className = "btn secondary small"; b.textContent = "Abmelden"; b.title = "Spieler abmelden – der Name wird wieder frei"; b.onclick = () => remove(ref(db, `${G()}/claims/${pid}`)); acts.appendChild(b); }
     const x = document.createElement("button"); x.className = "btn danger small"; x.textContent = "Entfernen"; confirmBtn(x, "Entfernen", () => removePlayer(pid)); acts.appendChild(x);
     tb.appendChild(tr);

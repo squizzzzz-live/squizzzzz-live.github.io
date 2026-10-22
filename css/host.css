@@ -12,7 +12,7 @@
 .panel h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
 .small { font-size: .88rem; color: var(--muted); }
 .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
-.cols2 { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; margin-top: 26px; align-items: start; }
+.cols2 { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1fr); gap: 24px; margin-top: 26px; align-items: start; }
 .cols-rec { display: grid; grid-template-columns: 420px 1fr; gap: 24px; margin-top: 26px; align-items: start; }
 .cols-game { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 24px; margin-top: 26px; align-items: start; }
 .check { display: flex; gap: 10px; align-items: center; margin-top: 14px; color: var(--muted); cursor: pointer; }
@@ -95,3 +95,6 @@
 .slide .bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; gap: 4px; padding: 6px; background: linear-gradient(transparent, rgba(0,0,0,.7)); }
 .slide .bar button { background: rgba(255,255,255,.15); border: 0; color: #fff; border-radius: 8px; padding: 4px 9px; cursor: pointer; font: inherit; font-weight: 800; }
 .slide .bar button.del { background: rgba(229,72,77,.7); }
+.tbl td.bz { white-space: nowrap; }
+.tbl td.bz select { max-width: 140px; }
+.tbl td.small { white-space: nowrap; }
