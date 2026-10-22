@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B106C">
+<meta name="robots" content="noindex">
+<title>SQUIZZZzZ – Host</title>
+<link rel="stylesheet" href="../css/base.css">
+</head>
+<body>
+<main class="wrap">
+  <div class="kicker">Host</div>
+  <h1>SQUIZZZzZ</h1>
+
+  <section id="signed-out">
+    <p>Melde Dich als Host mit Deinem Google-Konto an.</p>
+    <button id="login" class="btn">Mit Google anmelden</button>
+  </section>
+
+  <section id="signed-in" class="hidden">
+    <p>Angemeldet. Das Spielpult kommt in der nächsten Ausbaustufe.</p>
+    <div class="card">
+      <div class="label">Name</div>
+      <div class="value" id="name"></div>
+      <div class="label">E-Mail</div>
+      <div class="value" id="email"></div>
+      <div class="label">Host-UID</div>
+      <div class="value mono" id="uid"></div>
+    </div>
+    <button id="copy" class="btn">UID kopieren</button>
+    <br>
+    <button id="logout" class="btn secondary">Abmelden</button>
+  </section>
+
+  <p id="error" class="error hidden"></p>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { firebaseConfig } from "../js/firebase-config.js";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const $ = (id) => document.getElementById(id);
+
+  function showError(msg) { $("error").textContent = msg; $("error").classList.remove("hidden"); }
+
+  onAuthStateChanged(auth, (user) => {
+    const loggedIn = !!user && !user.isAnonymous;
+    $("signed-out").classList.toggle("hidden", loggedIn);
+    $("signed-in").classList.toggle("hidden", !loggedIn);
+    if (loggedIn) {
+      $("name").textContent = user.displayName || "–";
+      $("email").textContent = user.email || "–";
+      $("uid").textContent = user.uid;
+    }
+  });
+
+  $("login").addEventListener("click", async () => {
+    $("login").disabled = true; $("login").textContent = "Anmeldung läuft …";
+    $("error").classList.add("hidden");
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (e) {
+      showError("Anmeldung fehlgeschlagen: " + (e.code || e.message));
+    } finally {
+      $("login").disabled = false; $("login").textContent = "Mit Google anmelden";
+    }
+  });
+
+  $("copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText($("uid").textContent);
+      $("copy").textContent = "Kopiert ✓";
+      setTimeout(() => ($("copy").textContent = "UID kopieren"), 2000);
+    } catch { showError("Kopieren nicht möglich – bitte UID markieren und mit ⌘C kopieren."); }
+  });
+
+  $("logout").addEventListener("click", () => signOut(auth));
+</script>
+</body>
+</html>
