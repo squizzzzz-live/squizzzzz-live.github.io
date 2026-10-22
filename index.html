@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ</title>
-<link rel="stylesheet" href="css/base.css?v=202610221709">
+<link rel="stylesheet" href="css/base.css?v=202610221716">
 </head>
 <body>
 <main class="wrap">
@@ -37,14 +37,15 @@
   </section>
 
   <p id="msg" class="hidden" style="margin-top:22px"></p>
+  <button id="retry" class="btn secondary small hidden" style="margin-top:16px">Neu verbinden</button>
   <p id="error" class="error hidden"></p>
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610221709";
-  import { auth, db } from "./js/fb.js?v=202610221709";
+  import { startRibbons } from "./js/ribbons.js?v=202610221716";
+  import { auth, db } from "./js/fb.js?v=202610221716";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { ref, onValue, set, remove, onDisconnect, serverTimestamp }
+  import { ref, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   startRibbons();
@@ -56,7 +57,7 @@
 
   const params = new URLSearchParams(location.search);
   let game = (params.get("g") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-  let uid = null, roster = {}, claims = {}, unsub = [], exists = false;
+  let uid = null, roster = {}, claims = {}, unsub = [], exists = false, loaded = false, watchdog = 0;
 
   onAuthStateChanged(auth, (user) => {
     if (!user) { signInAnonymously(auth).catch((e) => err("Anmeldung fehlgeschlagen: " + e.code)); return; }
@@ -73,10 +74,12 @@
   $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("code-go").click(); });
 
   function joinGame(code) {
-    game = code; exists = false; err(""); msg("Verbinde …");
+    game = code; exists = false; loaded = false; err(""); msg("Verbinde …");
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => { if (!loaded) { msg("Die Verbindung hakt gerade."); $("retry").classList.remove("hidden"); } }, 7000);
     unsub.forEach((u) => u()); unsub = [];
     unsub.push(onValue(ref(db, `games/${game}/public`), (snap) => {
-      exists = snap.exists();
+      exists = snap.exists(); loaded = true; clearTimeout(watchdog); $("retry").classList.add("hidden");
       msg("");
       if (!exists) { err("Zu diesem Code gibt es gerade kein Spiel."); $("code").value = game; show("v-code"); return; }
       err(""); render();
@@ -118,8 +121,24 @@
     msg(Object.keys(roster).length ? "" : "Noch keine Namen eingetragen – gleich nochmal versuchen.");
   }
 
-  $("not-me").addEventListener("click", () => {
-    msg("Sag kurz misterQ Bescheid – er gibt Deinen Namen wieder frei.");
+  $("not-me").addEventListener("click", async () => {
+    const pid = myPlayerId(); if (!pid) return;
+    try {
+      await remove(ref(db, `games/${game}/presence/${uid}`)).catch(() => {});
+      await remove(ref(db, `games/${game}/claims/${pid}`));
+      msg("");
+    } catch { msg("Sag kurz misterQ Bescheid – er gibt Deinen Namen wieder frei."); }
+  });
+
+  // Neu verbinden: Verbindung zur Datenbank kurz trennen und neu aufbauen, Listener neu setzen
+  $("retry").addEventListener("click", () => {
+    $("retry").classList.add("hidden");
+    goOffline(db); setTimeout(() => { goOnline(db); joinGame(game); }, 300);
+  });
+
+  // iPhone: nach Rückkehr aus dem Hintergrund Verbindung auffrischen
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && game && !loaded) { goOffline(db); goOnline(db); joinGame(game); }
   });
 </script>
 </body>
