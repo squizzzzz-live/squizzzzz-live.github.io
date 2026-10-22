@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B106C">
 <meta name="robots" content="noindex">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
 <link rel="stylesheet" href="../css/base.css">
 </head>
@@ -41,6 +42,9 @@
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { firebaseConfig } from "../js/firebase-config.js";
+  import { startRibbons } from "../js/ribbons.js";
+
+  startRibbons({ ribbons: 6, strands: 4, intensity: 0.9 });
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);

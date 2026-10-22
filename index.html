@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B106C">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ</title>
 <style>
   :root { --navy:#0B106C; --navy-deep:#060945; --orange:#FF8E00; --text:#F4F5FF; }
   * { box-sizing:border-box; margin:0; }
   html,body { height:100%; }
+  h1, p, .kicker { text-shadow: 0 2px 18px rgba(6,9,69,.85); }
   body {
     background:radial-gradient(120% 90% at 50% 0%, #1921B1 0%, var(--navy) 45%, var(--navy-deep) 100%);
     color:var(--text);
@@ -26,5 +28,9 @@
     <h1>SQUIZZZzZ</h1>
     <p>Hier entsteht die SQUIZZZzZ-App. Bald geht's los.</p>
   </main>
+<script type="module">
+  import { startRibbons } from "./js/ribbons.js";
+  startRibbons();
+</script>
 </body>
 </html>
