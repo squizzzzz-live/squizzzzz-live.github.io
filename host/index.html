@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610221716">
+<link rel="stylesheet" href="../css/base.css?v=202610221732">
 <style>
   /* Host = Mac: breites Layout */
   .host-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 32px 60px; }
@@ -81,6 +81,10 @@
         <div><b id="c-on">0</b>online</div>
         <div><b id="c-all">0</b>Teilnehmer</div>
       </div>
+      <label style="display:flex;gap:10px;align-items:center;margin-top:16px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="allow-guests" style="width:20px;height:20px;accent-color:#FF8E00">
+        Spieler dürfen ihren Namen selbst eintragen
+      </label>
       <ul class="plist" id="plist"></ul>
       <div class="row">
         <button id="end" class="btn danger small">Spiel beenden &amp; löschen</button>
@@ -93,8 +97,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script type="module">
-  import { startRibbons } from "../js/ribbons.js?v=202610221716";
-  import { auth, db, HOST_UID, APP_URL } from "../js/fb.js?v=202610221716";
+  import { startRibbons } from "../js/ribbons.js?v=202610221732";
+  import { auth, db, HOST_UID, APP_URL } from "../js/fb.js?v=202610221732";
   import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, set, remove, onValue, serverTimestamp }
@@ -127,6 +131,7 @@
   });
   document.querySelectorAll(".logout").forEach((b) => b.addEventListener("click", () => signOut(auth)));
 
+  const cleanName = (n) => n.replace(/[.#$\[\]\/]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
   const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne 0/O, 1/I – leicht abzutippen
   const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (n) => ALPH[n % ALPH.length]).join("");
 
@@ -137,11 +142,16 @@
     const btn = $("create"); btn.disabled = true; btn.textContent = "Wird angelegt …";
     try {
       let code; do { code = newCode(); } while ((await get(ref(db, `games/${code}/public`))).exists());
-      const rosterObj = {};
-      names.forEach((n, i) => (rosterObj["p" + String(i + 1).padStart(2, "0")] = { name: n.slice(0, 40) }));
+      const rosterObj = {}, nameIndex = {};
+      names.map(cleanName).filter(Boolean).forEach((n, i) => {
+        if (nameIndex[n.toLowerCase()]) return;              // doppelte Namen nur einmal
+        rosterObj["p" + String(i + 1).padStart(2, "0")] = { name: n };
+        nameIndex[n.toLowerCase()] = HOST_UID;
+      });
       await set(ref(db, `games/${code}`), {
-        public: { state: "lobby", title: "Testspiel", createdAt: serverTimestamp() },
+        public: { state: "lobby", title: "Testspiel", allowGuests: true, createdAt: serverTimestamp() },
         roster: rosterObj,
+        nameIndex,
       });
       store.set(code); openLobby(code);
     } catch (e) { err("Spiel konnte nicht angelegt werden: " + (e.code || e.message)); }
@@ -157,6 +167,7 @@
     unsub.push(onValue(ref(db, `games/${code}/roster`), (s) => { roster = s.val() || {}; renderPlayers(); }));
     unsub.push(onValue(ref(db, `games/${code}/claims`), (s) => { claims = s.val() || {}; renderPlayers(); }));
     unsub.push(onValue(ref(db, `games/${code}/presence`), (s) => { presence = s.val() || {}; renderPlayers(); }));
+    unsub.push(onValue(ref(db, `games/${code}/public/allowGuests`), (s) => { $("allow-guests").checked = s.val() === true; }));
   }
 
   function renderPlayers() {
@@ -167,7 +178,7 @@
       if (uid) nIn++; if (online) nOn++;
       const li = document.createElement("li");
       li.innerHTML = `<span class="status-dot ${online ? "on" : ""}"></span><span class="n"></span><span class="state">${uid ? (online ? "online" : "angemeldet, offline") : "noch nicht da"}</span>`;
-      li.querySelector(".n").textContent = p.name;
+      li.querySelector(".n").textContent = p.name + (p.guest ? "  · neu" : "");
       if (uid) {
         const b = document.createElement("button");
         b.className = "btn secondary small"; b.textContent = "Freigeben";
@@ -175,10 +186,21 @@
         b.addEventListener("click", () => remove(ref(db, `games/${game}/claims/${pid}`)));
         li.appendChild(b);
       }
+      if (p.guest) {
+        const x = document.createElement("button");
+        x.className = "btn danger small"; x.textContent = "Entfernen";
+        x.addEventListener("click", () => Promise.all([
+          remove(ref(db, `games/${game}/claims/${pid}`)),
+          remove(ref(db, `games/${game}/nameIndex/${p.name.toLowerCase()}`)),
+        ]).then(() => remove(ref(db, `games/${game}/roster/${pid}`))));
+        li.appendChild(x);
+      }
       list.appendChild(li);
     });
     $("c-in").textContent = nIn; $("c-on").textContent = nOn; $("c-all").textContent = Object.keys(roster).length;
   }
+
+  $("allow-guests").addEventListener("change", (e) => set(ref(db, `games/${game}/public/allowGuests`), e.target.checked));
 
   $("end").addEventListener("click", async () => {
     const b = $("end");

@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ</title>
-<link rel="stylesheet" href="css/base.css?v=202610221716">
+<link rel="stylesheet" href="css/base.css?v=202610221732">
 </head>
 <body>
 <main class="wrap">
@@ -26,6 +26,14 @@
   <section id="v-names" class="hidden">
     <p>Wer bist Du? Tippe auf Deinen Namen.</p>
     <div id="names" class="names"></div>
+    <div id="guest-box" class="hidden" style="margin-top:26px">
+      <button id="guest-open" class="btn secondary small">Ich stehe nicht auf der Liste</button>
+      <div id="guest-form" class="hidden">
+        <p style="margin-top:10px">Tipp Deinen Namen ein – so, wie ihn alle kennen.</p>
+        <input id="guest-name" class="field" maxlength="30" autocomplete="off" placeholder="Dein Name">
+        <button id="guest-go" class="btn">Mitspielen</button>
+      </div>
+    </div>
   </section>
 
   <!-- 3. Drin -->
@@ -42,10 +50,10 @@
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610221716";
-  import { auth, db } from "./js/fb.js?v=202610221716";
+  import { startRibbons } from "./js/ribbons.js?v=202610221732";
+  import { auth, db } from "./js/fb.js?v=202610221732";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { ref, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
+  import { ref, get, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   startRibbons();
@@ -57,7 +65,7 @@
 
   const params = new URLSearchParams(location.search);
   let game = (params.get("g") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-  let uid = null, roster = {}, claims = {}, unsub = [], exists = false, loaded = false, watchdog = 0;
+  let uid = null, roster = {}, claims = {}, unsub = [], exists = false, loaded = false, watchdog = 0, allowGuests = false;
 
   onAuthStateChanged(auth, (user) => {
     if (!user) { signInAnonymously(auth).catch((e) => err("Anmeldung fehlgeschlagen: " + e.code)); return; }
@@ -79,7 +87,7 @@
     watchdog = setTimeout(() => { if (!loaded) { msg("Die Verbindung hakt gerade."); $("retry").classList.remove("hidden"); } }, 7000);
     unsub.forEach((u) => u()); unsub = [];
     unsub.push(onValue(ref(db, `games/${game}/public`), (snap) => {
-      exists = snap.exists(); loaded = true; clearTimeout(watchdog); $("retry").classList.add("hidden");
+      exists = snap.exists(); loaded = true; allowGuests = !!(snap.val() && snap.val().allowGuests); clearTimeout(watchdog); $("retry").classList.add("hidden");
       msg("");
       if (!exists) { err("Zu diesem Code gibt es gerade kein Spiel."); $("code").value = game; show("v-code"); return; }
       err(""); render();
@@ -102,6 +110,7 @@
       return;
     }
     show("v-names");
+    $("guest-box").classList.toggle("hidden", !allowGuests);
     const list = $("names"); list.innerHTML = "";
     Object.entries(roster)
       .sort((a, b) => a[1].name.localeCompare(b[1].name, "de"))
@@ -120,6 +129,29 @@
       });
     msg(Object.keys(roster).length ? "" : "Noch keine Namen eingetragen – gleich nochmal versuchen.");
   }
+
+  // Eigenen Namen eintragen (wenn der Host das erlaubt)
+  const cleanName = (n) => n.replace(/[.#$\[\]\/]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
+  $("guest-open").addEventListener("click", () => { $("guest-open").classList.add("hidden"); $("guest-form").classList.remove("hidden"); $("guest-name").focus(); });
+  $("guest-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("guest-go").click(); });
+  $("guest-go").addEventListener("click", async () => {
+    const name = cleanName($("guest-name").value); err("");
+    if (!name) return err("Bitte einen Namen eintippen.");
+    const key = name.toLowerCase(), pid = "g_" + uid, btn = $("guest-go");
+    btn.disabled = true; btn.textContent = "Moment …";
+    try {
+      try { await set(ref(db, `games/${game}/nameIndex/${key}`), uid); }
+      catch {
+        const owner = (await get(ref(db, `games/${game}/nameIndex/${key}`))).val();
+        if (owner !== uid) throw new Error("taken");
+      }
+      if (!roster[pid]) await set(ref(db, `games/${game}/roster/${pid}`), { name, guest: true });
+      await set(ref(db, `games/${game}/claims/${pid}`), uid);
+      $("guest-name").value = "";
+    } catch (e) {
+      err(e.message === "taken" ? "Diesen Namen gibt es schon – nimm z. B. den ersten Buchstaben Deines Nachnamens dazu." : "Das hat nicht geklappt – bitte nochmal versuchen.");
+    } finally { btn.disabled = false; btn.textContent = "Mitspielen"; }
+  });
 
   $("not-me").addEventListener("click", async () => {
     const pid = myPlayerId(); if (!pid) return;
