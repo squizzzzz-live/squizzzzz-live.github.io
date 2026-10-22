@@ -1,0 +1,41 @@
+# Spielt die Sicherheitsregeln der Realtime Database automatisch in Firebase ein,
+# sobald database.rules.json (oder firebase.json) auf main geändert wird.
+# Benötigt das Repository-Secret FIREBASE_SERVICE_ACCOUNT (JSON-Schlüssel eines Firebase-Dienstkontos).
+name: Firebase-Regeln einspielen
+
+on:
+  push:
+    branches: [main]
+    paths: [database.rules.json, firebase.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-rules
+  cancel-in-progress: false
+
+jobs:
+  deploy-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Regeln prüfen (gültiges JSON)
+        run: node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8')); console.log('JSON ok')"
+      - name: Dienstkonto bereitstellen
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::Secret FIREBASE_SERVICE_ACCOUNT fehlt"; exit 1; fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+      - name: Regeln einspielen
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@15.34.1 deploy --only database --project squizzzzz-live --non-interactive
+      - name: Aufräumen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"
