@@ -59,7 +59,7 @@ export function parseSpeedquizzing(xmlText, fileName = "", parser = new DOMParse
     }
   });
 
-  return { title, mode, points, speedBonus, bonus: speedBonus ? [2, 1] : [], questions, source: fileName };
+  return { title, mode, points, speedBonus, bonus: speedBonus ? [4] : [],        // Martin: Speed-Bonus 4 Punkte nur für den Schnellsten (Standard) questions, source: fileName };
 }
 
 export function toNumber(v) {
