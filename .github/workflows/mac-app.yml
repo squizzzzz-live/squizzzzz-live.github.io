@@ -1,0 +1,27 @@
+name: Mac-App bauen
+
+on:
+  push:
+    branches: [main]
+    paths: ['mac/**', '.github/workflows/mac-app.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: App bauen
+        run: bash mac/build.sh "0.1.${{ github.run_number }}"
+      - name: Als Release „pult-latest“ veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete pult-latest --yes --cleanup-tag || true
+          gh release create pult-latest "mac/build/SQUIZZZzZ-Pult.zip" \
+            --title "SQUIZZZzZ Pult für Mac – 0.1.${{ github.run_number }}" \
+            --notes "Automatisch gebaut aus ${{ github.sha }}. Nicht notarisiert: beim ersten Öffnen Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“." \
+            --target "${{ github.sha }}"

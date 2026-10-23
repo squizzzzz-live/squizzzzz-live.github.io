@@ -11,3 +11,4 @@ firebase-debug.log
 database-debug.log
 # Quizinhalte gehören NICHT in dieses öffentliche Repository
 content/
+mac/build/

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0B106C">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<title>SQUIZZZzZ Pult – Mac-Test</title>
+<link rel="stylesheet" href="../css/base.css?v=202610232154">
+<link rel="stylesheet" href="../css/host.css?v=202610232154">
+<style>
+  .mt { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  .mt section { background: rgba(6,9,69,.55); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-top: 18px; }
+  .mt h2 { margin: 0 0 10px; font-size: 1.1rem; }
+  .mt .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .mt .ok { color: #7CF0B5; font-weight: 800; }
+  .mt .bad { color: #FFB3B3; font-weight: 800; }
+  .mt .crumbs { font-size: .9rem; opacity: .85; margin: 6px 0 10px; word-break: break-all; }
+  .mt ul.files { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; border-top: 1px solid var(--line); }
+  .mt ul.files li { padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,.06); cursor: pointer; display: flex; justify-content: space-between; gap: 12px; }
+  .mt ul.files li:hover { background: rgba(255,255,255,.06); }
+  .mt ul.files li.round { color: var(--orange); font-weight: 700; }
+  .mt pre { white-space: pre-wrap; word-break: break-word; font-size: .85rem; background: rgba(0,0,0,.25); padding: 10px 12px; border-radius: 10px; max-height: 360px; overflow: auto; margin: 10px 0 0; }
+  .mt input[type=text] { font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,.25); color: inherit; min-width: 260px; }
+</style>
+</head>
+<body>
+<div class="mt">
+  <div class="kicker">Pult · Mac-Test</div>
+  <h1>SQUIZZZzZ Pult – Mac-Test</h1>
+  <p id="env">Prüfe …</p>
+
+  <section>
+    <h2>1 · Dateien per Pfad lesen</h2>
+    <div class="crumbs" id="crumbs"></div>
+    <div class="row"><button class="btn small secondary" id="up" type="button">↑ eine Ebene hoch</button></div>
+    <ul class="files" id="files"></ul>
+    <pre id="file-out" class="hidden"></pre>
+  </section>
+
+  <section>
+    <h2>2 · QLab</h2>
+    <div class="row">
+      <button class="btn small" id="ql-list" type="button">Verbinden &amp; Cue-Liste lesen</button>
+      <button class="btn small secondary" id="ql-reset" type="button">Verbindung zurücksetzen</button>
+    </div>
+    <pre id="ql-out" class="hidden"></pre>
+    <div class="row" style="margin-top:14px">
+      <input type="text" id="osc-addr" placeholder="/cue/1.1/start" autocomplete="off">
+      <button class="btn small secondary" id="osc-send" type="button">Senden</button>
+    </div>
+    <p style="font-size:.85rem;opacity:.75;margin:8px 0 0">Adresse relativ zum Workspace, z. B. <code>/cue/1.1/start</code>, <code>/cue/1.1/pause</code>, <code>/cue/1.1/resume</code>, <code>/cue/1.1/stop</code>, <code>/runningCues</code>.</p>
+  </section>
+
+  <section>
+    <h2>3 · Ton ohne Klick</h2>
+    <p id="snd">Teste …</p>
+  </section>
+</div>
+
+<script type="module">
+import { parseSpeedquizzing } from "../js/sqq.js?v=202610232154";
+
+const $ = (id) => document.getElementById(id);
+const bridge = window.webkit?.messageHandlers?.sqz;
+const mac = (cmd, args = {}) => bridge.postMessage({ cmd, args });
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mb = (n) => n > 1e6 ? (n / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB";
+const show = (el, text, bad = false) => { el.classList.remove("hidden"); el.textContent = text; el.style.color = bad ? "#FFB3B3" : ""; };
+
+let path = "00 Fragensammlung";
+
+async function list() {
+  $("crumbs").textContent = "SQUIZZZzZ / " + path;
+  $("files").innerHTML = "<li>Lade …</li>";
+  try {
+    const items = await mac("list", { path });
+    $("files").innerHTML = items.map((f) => {
+      const round = /\.(sqq|sqb|sqn)$/i.test(f.name);
+      return `<li class="${round ? "round" : ""}" data-name="${esc(f.name)}" data-dir="${f.dir ? 1 : 0}"><span>${f.dir ? "📁 " : round ? "🎯 " : "· "}${esc(f.name)}</span><span>${f.dir ? "" : mb(f.size)}</span></li>`;
+    }).join("") || "<li>(leer)</li>";
+  } catch (e) { $("files").innerHTML = `<li class="bad">${esc(e.message || e)}</li>`; }
+}
+
+$("files").addEventListener("click", async (ev) => {
+  const li = ev.target.closest("li[data-name]"); if (!li) return;
+  const name = li.dataset.name;
+  if (li.dataset.dir === "1") { path = path ? path + "/" + name : name; list(); return; }
+  if (!/\.(sqq|sqb|sqn)$/i.test(name)) { show($("file-out"), "Nur Rundendateien (.sqq, .sqb, .sqn) werden hier getestet."); return; }
+  show($("file-out"), "Lese " + name + " …");
+  try {
+    const t0 = performance.now();
+    const xml = await mac("read", { path: path + "/" + name });
+    const t1 = performance.now();
+    const r = parseSpeedquizzing(xml, name);
+    const t2 = performance.now();
+    const pics = r.questions.filter((q) => q.picture).length;
+    show($("file-out"),
+      `✓ Gelesen per Pfad: ${path}/${name}\n` +
+      `Größe: ${mb(xml.length)} · Lesen ${Math.round(t1 - t0)} ms · Umwandeln ${Math.round(t2 - t1)} ms\n` +
+      `Runde: ${r.title} · Modus: ${r.mode} · Fragen: ${r.questions.length} · mit Bild: ${pics}`);
+  } catch (e) { show($("file-out"), "✗ " + (e.message || e), true); }
+});
+
+$("up").addEventListener("click", () => { path = path.split("/").slice(0, -1).join("/"); list(); });
+
+function cueLines(cues, depth = 0, out = []) {
+  for (const c of cues || []) {
+    out.push(`${"   ".repeat(depth)}${c.number || "–"}  ${c.name || c.listName || "(ohne Namen)"}  [${c.type}]`);
+    if (c.cues) cueLines(c.cues, depth + 1, out);
+  }
+  return out;
+}
+
+$("ql-list").addEventListener("click", async () => {
+  show($("ql-out"), "Verbinde …");
+  try {
+    const res = JSON.parse(await mac("qlab", { address: "/cueLists" }));
+    if (res.status !== "ok") throw new Error("QLab meldet: " + res.status);
+    const lists = res.data || [];
+    show($("ql-out"), "✓ Verbunden.\n\n" + lists.map((l) => `▸ ${l.listName || l.name}\n` + cueLines(l.cues, 1).join("\n")).join("\n\n"));
+  } catch (e) { show($("ql-out"), "✗ " + (e.message || e), true); }
+});
+
+$("ql-reset").addEventListener("click", async () => { await mac("qlabReset"); show($("ql-out"), "Zurückgesetzt."); });
+
+$("osc-send").addEventListener("click", async () => {
+  const address = $("osc-addr").value.trim(); if (!address.startsWith("/")) return;
+  show($("ql-out"), "Sende " + address + " …");
+  try { show($("ql-out"), address + "\n" + JSON.stringify(JSON.parse(await mac("qlab", { address })), null, 2)); }
+  catch (e) { show($("ql-out"), "✗ " + (e.message || e), true); }
+});
+
+async function soundTest() {
+  try {
+    const a = new Audio("../sounds/buzzer/Martin.mp3");
+    await a.play();
+    $("snd").innerHTML = '<span class="ok">✓ Ton lief ohne Klick</span> – im Pult wäre „Ton an“ dann nicht mehr nötig.';
+  } catch (e) {
+    $("snd").innerHTML = `<span class="bad">✗ Ton gesperrt</span> (${esc(e.name)}) – „Ton an“ bleibt nötig.`;
+  }
+}
+
+if (!bridge) {
+  $("env").innerHTML = '<span class="bad">Diese Seite läuft nicht in der Mac-App „SQUIZZZzZ Pult“.</span> Im normalen Browser gibt es keinen Zugriff auf Dateien und QLab.';
+  document.querySelectorAll("section").forEach((s) => s.style.opacity = .4);
+} else {
+  try {
+    const i = await mac("info");
+    $("env").innerHTML = `<span class="ok">✓ Mac-App ${esc(i.version)}</span> · Ordner ${esc(i.root)}: ` +
+      (i.rootFound ? '<span class="ok">gefunden</span>' : '<span class="bad">nicht gefunden</span>') +
+      ` · QLab-Passcode: ${i.passcodeSet ? '<span class="ok">hinterlegt</span>' : '<span class="bad">fehlt</span> (Menü „SQUIZZZzZ Pult“ → „QLab-Passcode festlegen…“)'}`;
+    list();
+  } catch (e) { $("env").innerHTML = `<span class="bad">✗ ${esc(e.message || e)}</span>`; }
+  setTimeout(soundTest, 1200);
+}
+</script>
+</body>
+</html>
