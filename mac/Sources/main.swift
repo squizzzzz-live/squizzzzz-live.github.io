@@ -285,7 +285,13 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
 
     static func convert(_ a: Any) -> Any {
         if let s = a as? String { return s }
-        if let n = a as? NSNumber { return CFNumberIsFloatType(n) ? n.doubleValue : n.intValue }
+        // JavaScript kennt nur Kommazahlen: 2 kommt als 2.0 an. Ganze Zahlen deshalb als OSC-Int senden –
+        // QLab ignoriert z. B. continueMode 2.0 (Float) stillschweigend.
+        if let n = a as? NSNumber {
+            let d = n.doubleValue
+            if d.rounded() == d, abs(d) < 2_147_483_647 { return Int(d) }
+            return d
+        }
         return "\(a)"
     }
 
