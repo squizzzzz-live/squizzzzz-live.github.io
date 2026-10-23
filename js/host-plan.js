@@ -1,10 +1,10 @@
 // Regieplan: den Abend vorbereiten (Reiter „Regieplan“) und im Pult Schritt für Schritt abarbeiten (Leiste im Reiter „Spiel“).
 // Ein Block ist Film, Moderation, Runde, Pause oder Siegerverkündung. Runden zeigen auf eine Datei im Ordner SQUIZZZzZ,
 // die das Pult (Mac-App) erst beim Start der Runde liest. QLab kommt in P3 dazu.
-import { db } from "./fb.js?v=202610232341";
-import { parseSpeedquizzing } from "./sqq.js?v=202610232341";
-import { shrink } from "./images.js?v=202610232341";
-import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610232341";
+import { db } from "./fb.js?v=202610232346";
+import { parseSpeedquizzing } from "./sqq.js?v=202610232346";
+import { shrink } from "./images.js?v=202610232346";
+import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610232346";
 import { ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const $ = (id) => document.getElementById(id);

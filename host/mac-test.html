@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#0B106C">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ Pult – Mac-Test</title>
-<link rel="stylesheet" href="../css/base.css?v=202610232341">
-<link rel="stylesheet" href="../css/host.css?v=202610232341">
+<link rel="stylesheet" href="../css/base.css?v=202610232346">
+<link rel="stylesheet" href="../css/host.css?v=202610232346">
 <style>
   .mt { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
   .mt section { background: rgba(6,9,69,.55); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-top: 18px; }
@@ -69,6 +69,7 @@
     <p class="small">Legt in QLab eine Testgruppe „ZZ Schreibtest“ an (Nummer T) mit Film → automatisch weiter → Standbild, und liest alles zurück. „Testgruppe löschen“ räumt wieder auf.</p>
     <div class="row">
       <button class="btn small" id="qw-run" type="button">Schreibtest starten</button>
+      <button class="btn small secondary" id="qw-cont" type="button">Folgemodus nachtesten</button>
       <button class="btn small secondary" id="qw-del" type="button">Testgruppe löschen</button>
     </div>
     <pre id="qw-out" class="hidden"></pre>
@@ -81,7 +82,7 @@
 </div>
 
 <script type="module">
-import { parseSpeedquizzing } from "../js/sqq.js?v=202610232341";
+import { parseSpeedquizzing } from "../js/sqq.js?v=202610232346";
 
 const $ = (id) => document.getElementById(id);
 const bridge = window.webkit?.messageHandlers?.sqz;
@@ -193,6 +194,19 @@ $("qw-run").addEventListener("click", async () => {
       log(`${label}: Nummer ${await get("number")} · Name ${await get("name")} · Eltern ${await get("parent")} · Folge ${await get("continueMode")} · Dauer ${await get("duration")} · kaputt ${await get("isBroken")}`);
     }
     log("\n✓ Fertig – in QLab sollte jetzt die Gruppe „T · ZZ Schreibtest“ stehen.");
+  } catch (e) { log("✗ " + (e.message || e)); }
+  refreshLog();
+});
+$("qw-cont").addEventListener("click", async () => {
+  const out = [], log = (t) => { out.push(t); show($("qw-out"), out.join("\n")); };
+  try {
+    const id = (await q("/cue/T.1/uniqueID")).data; if (!id) throw new Error("Cue T.1 nicht gefunden – erst den Schreibtest starten.");
+    const read = async () => JSON.stringify((await q(`/cue_id/${id}/continueMode`)).data);
+    log("vorher: " + await read());
+    for (const [label, addr, arg] of [["Zahl 2 (cue_id)", `/cue_id/${id}/continueMode`, 2], ["Text \"2\" (cue_id)", `/cue_id/${id}/continueMode`, "2"], ["Zahl 2 (Nummer)", "/cue/T.1/continueMode", 2], ["Zahl 1 (cue_id)", `/cue_id/${id}/continueMode`, 1]]) {
+      const r = await q(addr, [arg]); log(`${label} → ${JSON.stringify(r)}  ·  gelesen: ${await read()}`);
+      if ((await read()) !== "0") break;
+    }
   } catch (e) { log("✗ " + (e.message || e)); }
   refreshLog();
 });
