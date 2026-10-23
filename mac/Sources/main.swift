@@ -87,63 +87,114 @@ enum OSC {
     }
 }
 
-// MARK: - QLab-Verbindung (UDP 53000 senden, Antworten auf 53001 oder Absenderport)
+// MARK: - QLab-Verbindung (TCP 53000, SLIP-gerahmt nach OSC 1.1)
+// TCP statt UDP: QLab trennt UDP-Clients nach 61 s Stille, große Cue-Listen passen nicht in ein
+// UDP-Paket, und Antworten kommen bei TCP zuverlässig über dieselbe Verbindung zurück.
+
+enum SLIP {
+    static let END: UInt8 = 0xC0, ESC: UInt8 = 0xDB, ESC_END: UInt8 = 0xDC, ESC_ESC: UInt8 = 0xDD
+    static func encode(_ d: Data) -> Data {
+        var out = Data([END])
+        for b in d {
+            switch b {
+            case END: out.append(contentsOf: [ESC, ESC_END])
+            case ESC: out.append(contentsOf: [ESC, ESC_ESC])
+            default: out.append(b)
+            }
+        }
+        out.append(END)
+        return out
+    }
+    static func decode(_ frame: [UInt8]) -> Data {
+        var out = Data(); var esc = false
+        for b in frame {
+            if esc { out.append(b == ESC_END ? END : b == ESC_ESC ? ESC : b); esc = false }
+            else if b == ESC { esc = true }
+            else { out.append(b) }
+        }
+        return out
+    }
+}
 
 final class QLab {
     private let q = DispatchQueue(label: "de.squizzzzz.pult.qlab")
     private var conn: NWConnection?
-    private var listener: NWListener?
+    private var buffer: [UInt8] = []
     private var pending: [String: [(String?) -> Void]] = [:]
     private var workspace: String?
+    private var passcode: String?          // einmal aus dem Schlüsselbund gelesen, dann im Speicher
     private(set) var workspaceName: String?
-
-    init() {
-        // Socket und Antwort-Empfänger (UDP 53001) gleich beim Start öffnen,
-        // sonst kann die allererste Antwort von QLab ankommen, bevor jemand zuhört.
-        q.async { self.ensureSocket() }
-    }
+    private var log: [String] = []
 
     func reset() {
         q.async {
-            self.workspace = nil
-            self.workspaceName = nil
-            self.conn?.cancel()
-            self.conn = nil
+            self.passcode = nil
+            self.drop("zurückgesetzt")
         }
     }
 
-    private func ensureSocket() {
-        if conn == nil {
-            let c = NWConnection(host: "127.0.0.1", port: 53000, using: .udp)
-            c.start(queue: q)
-            conn = c
-            receive(on: c)
-        }
-        if listener == nil, let l = try? NWListener(using: .udp, on: 53001) {
-            l.newConnectionHandler = { [weak self] nc in
-                guard let self = self else { return }
-                nc.start(queue: self.q)
-                self.receive(on: nc)
+    func recentLog(_ done: @escaping ([String]) -> Void) { q.async { let l = self.log; DispatchQueue.main.async { done(l) } } }
+
+    private func note(_ s: String) {
+        let f = DateFormatter(); f.dateFormat = "HH:mm:ss"
+        log.append("\(f.string(from: Date()))  \(s)")
+        if log.count > 40 { log.removeFirst(log.count - 40) }
+    }
+
+    private func drop(_ why: String) {
+        note("Verbindung weg: \(why)")
+        conn?.cancel(); conn = nil
+        workspace = nil; workspaceName = nil; buffer = []
+        let waiting = pending; pending = [:]
+        waiting.values.flatMap { $0 }.forEach { $0(nil) }
+    }
+
+    private func ensureConnection() {
+        guard conn == nil else { return }
+        let c = NWConnection(host: "127.0.0.1", port: 53000, using: .tcp)
+        c.stateUpdateHandler = { [weak self, weak c] state in
+            guard let self = self, let c = c, c === self.conn else { return }
+            switch state {
+            case .ready: self.note("TCP verbunden")
+            case .failed(let e): self.drop("Fehler \(e)")
+            case .cancelled: break
+            case .waiting(let e): self.drop("wartet (\(e)) – läuft QLab?")
+            default: break
             }
-            l.start(queue: q)
-            listener = l
         }
+        conn = c
+        c.start(queue: q)
+        receive(on: c)
     }
 
     private func receive(on c: NWConnection) {
-        c.receiveMessage { [weak self] data, _, _, error in
-            guard let self = self else { return }
-            if let d = data, let (addr, json) = OSC.parseReply(d),
-               let callbacks = self.pending.removeValue(forKey: addr) {
-                callbacks.forEach { $0(json) }
-            }
-            if error == nil { self.receive(on: c) }
+        c.receive(minimumIncompleteLength: 1, maximumLength: 1 << 20) { [weak self] data, _, complete, error in
+            guard let self = self, c === self.conn else { return }
+            if let d = data { self.ingest([UInt8](d)) }
+            if complete || error != nil { self.drop(error.map { "\($0)" } ?? "von QLab beendet"); return }
+            self.receive(on: c)
         }
     }
 
-    /// Läuft auf q. done wird höchstens einmal aufgerufen (Antwort oder nil bei Zeitüberschreitung).
-    private func send(_ address: String, _ args: [Any], timeout: Double = 2.0, _ done: @escaping (String?) -> Void) {
-        ensureSocket()
+    private func ingest(_ bytes: [UInt8]) {
+        for b in bytes {
+            if b == SLIP.END {
+                if !buffer.isEmpty { handle(SLIP.decode(buffer)); buffer = [] }
+            } else {
+                buffer.append(b)
+            }
+        }
+    }
+
+    private func handle(_ d: Data) {
+        guard let (addr, json) = OSC.parseReply(d) else { return }
+        note("← \(addr.replacingOccurrences(of: workspace ?? "§", with: "…"))")
+        if let callbacks = pending.removeValue(forKey: addr) { callbacks.forEach { $0(json) } }
+    }
+
+    /// Läuft auf q. done höchstens einmal: Antwort oder nil (Zeitüberschreitung / Verbindung weg).
+    private func send(_ address: String, _ args: [Any], timeout: Double = 2.5, _ done: @escaping (String?) -> Void) {
+        ensureConnection()
         let key = "/reply" + address
         var fired = false
         let once: (String?) -> Void = { r in
@@ -152,19 +203,21 @@ final class QLab {
             done(r)
         }
         pending[key, default: []].append(once)
-        conn?.send(content: OSC.message(address, args), completion: .contentProcessed { _ in })
+        let shown = address.replacingOccurrences(of: workspace ?? "§", with: "…")
+        note("→ \(shown.hasSuffix("/connect") ? shown + " ••••" : shown)")
+        conn?.send(content: SLIP.encode(OSC.message(address, args)), completion: .contentProcessed { _ in })
         q.asyncAfter(deadline: .now() + timeout) { [weak self] in
             if !fired {
+                self?.note("⏱ keine Antwort auf \(shown)")
                 self?.pending[key] = nil
                 once(nil)
             }
         }
     }
 
-    /// Läuft auf q. Ohne auf eine Antwort zu warten.
     private func fire(_ address: String, _ args: [Any]) {
-        ensureSocket()
-        conn?.send(content: OSC.message(address, args), completion: .contentProcessed { _ in })
+        ensureConnection()
+        conn?.send(content: SLIP.encode(OSC.message(address, args)), completion: .contentProcessed { _ in })
     }
 
     static func object(_ json: String) -> [String: Any]? {
@@ -174,17 +227,15 @@ final class QLab {
     private func ensureWorkspace(_ done: @escaping (String?) -> Void, retry: Bool = true) {
         if workspace != nil { done(nil); return }
         send("/workspaces", []) { r in
-            if r == nil, retry {                       // erster Versuch kann ins Leere gehen – einmal wiederholen
-                self.ensureWorkspace(done, retry: false)
-                return
-            }
+            if r == nil, retry { self.ensureWorkspace(done, retry: false); return }
             guard let r = r, let o = QLab.object(r), let list = o["data"] as? [[String: Any]], !list.isEmpty else {
                 done("QLab antwortet nicht. Läuft QLab mit geöffnetem Workspace „SQUIZZZzZ Live“?")
                 return
             }
             let pick = list.first { (($0["displayName"] as? String) ?? "").contains("SQUIZZZzZ Live") } ?? list[0]
             guard let id = pick["uniqueID"] as? String else { done("QLab meldet keinen Workspace."); return }
-            let pass = Keychain.get() ?? ""
+            if self.passcode == nil { self.passcode = Keychain.get() }
+            let pass = self.passcode ?? ""
             self.send("/workspace/\(id)/connect", pass.isEmpty ? [] : [pass]) { r in
                 guard let r = r, let o = QLab.object(r) else { done("QLab antwortet nicht auf die Anmeldung."); return }
                 let data = (o["data"] as? String) ?? ""
@@ -192,12 +243,13 @@ final class QLab {
                     self.workspace = id
                     self.workspaceName = pick["displayName"] as? String
                     // Ohne alwaysReply antwortet QLab nur auf Abfragen, nicht auf start/pause/resume/stop.
-                    self.fire("/alwaysReply", [1])
                     self.fire("/workspace/\(id)/alwaysReply", [1])
+                    self.fire("/alwaysReply", [1])
                     self.q.asyncAfter(deadline: .now() + 0.15) { done(nil) }
                 } else if pass.isEmpty {
                     done("QLab-Passcode fehlt. Menü „SQUIZZZzZ Pult“ → „QLab-Passcode festlegen…“.")
                 } else {
+                    self.passcode = nil
                     done("QLab lehnt den Passcode ab (\(data.isEmpty ? (o["status"] as? String ?? "?") : data)).")
                 }
             }
@@ -209,9 +261,8 @@ final class QLab {
         q.async {
             self.ensureWorkspace { err in
                 if let e = err { DispatchQueue.main.async { done(nil, e) }; return }
-                guard let ws = self.workspace else { DispatchQueue.main.async { done(nil, "Kein Workspace") }; return }
+                guard let ws = self.workspace else { DispatchQueue.main.async { done(nil, "Keine Verbindung zu QLab.") }; return }
                 self.send("/workspace/\(ws)" + address, args) { r in
-                    if r == nil { self.workspace = nil }   // beim nächsten Mal neu anmelden
                     DispatchQueue.main.async {
                         if let r = r { done(r, nil) } else { done(nil, "QLab antwortet nicht auf \(address).") }
                     }
@@ -256,7 +307,7 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
             var isDir: ObjCBool = false
             let found = FileManager.default.fileExists(atPath: ROOT.path, isDirectory: &isDir) && isDir.boolValue
             replyHandler(["version": APP_VERSION, "root": ROOT.path, "rootFound": found,
-                          "passcodeSet": Keychain.get() != nil], nil)
+                          "passcodeSet": UserDefaults.standard.bool(forKey: "qlabPasscodeSet")], nil)
 
         case "list":
             guard let u = resolve((args["path"] as? String) ?? "") else { replyHandler(nil, "Pfad liegt außerhalb von SQUIZZZzZ."); return }
@@ -293,6 +344,9 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
             guard let address = args["address"] as? String, address.hasPrefix("/") else { replyHandler(nil, "OSC-Adresse fehlt."); return }
             let a = ((args["args"] as? [Any]) ?? []).map(Bridge.convert)
             qlab.call(address, a) { result, error in replyHandler(result, error) }
+
+        case "qlabLog":
+            qlab.recentLog { replyHandler($0, nil) }
 
         case "qlabReset":
             qlab.reset()
@@ -414,6 +468,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         alert.window.initialFirstResponder = field
         if alert.runModal() == .alertFirstButtonReturn {
             Keychain.set(field.stringValue)
+            UserDefaults.standard.set(!field.stringValue.isEmpty, forKey: "qlabPasscodeSet")
             bridge.qlab.reset()
         }
     }

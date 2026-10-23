@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#0B106C">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ Pult – Mac-Test</title>
-<link rel="stylesheet" href="../css/base.css?v=202610232154">
-<link rel="stylesheet" href="../css/host.css?v=202610232154">
+<link rel="stylesheet" href="../css/base.css?v=202610232236">
+<link rel="stylesheet" href="../css/host.css?v=202610232236">
 <style>
   .mt { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
   .mt section { background: rgba(6,9,69,.55); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-top: 18px; }
@@ -46,10 +46,21 @@
       <button class="btn small secondary" id="ql-reset" type="button">Verbindung zurücksetzen</button>
     </div>
     <pre id="ql-out" class="hidden"></pre>
+    <div class="row" style="margin-top:14px" id="quick">
+      <span style="font-size:.85rem;opacity:.75">Testfolge:</span>
+      <button class="btn small secondary" type="button" data-osc="/cue/1.1/start">1.1 start</button>
+      <button class="btn small secondary" type="button" data-osc="/cue/1.2/start">1.2 start</button>
+      <button class="btn small secondary" type="button" data-osc="/cue/1.1/pause">1.1 pause</button>
+      <button class="btn small secondary" type="button" data-osc="/cue/1.2/pause">1.2 pause</button>
+      <button class="btn small" type="button" data-osc="/cue/1.1/resume">1.1 resume</button>
+      <button class="btn small secondary" type="button" data-osc="/cue/1.1/stop">1.1 stop</button>
+      <button class="btn small secondary" type="button" data-osc="/cue/1.2/stop">1.2 stop</button>
+    </div>
     <div class="row" style="margin-top:14px">
       <input type="text" id="osc-addr" placeholder="/cue/1.1/start" autocomplete="off">
       <button class="btn small secondary" id="osc-send" type="button">Senden</button>
     </div>
+    <pre id="ql-log" class="hidden" style="opacity:.8"></pre>
     <p style="font-size:.85rem;opacity:.75;margin:8px 0 0">Adresse relativ zum Workspace, z. B. <code>/cue/1.1/start</code>, <code>/cue/1.1/pause</code>, <code>/cue/1.1/resume</code>, <code>/cue/1.1/stop</code>, <code>/runningCues</code>.</p>
   </section>
 
@@ -60,7 +71,7 @@
 </div>
 
 <script type="module">
-import { parseSpeedquizzing } from "../js/sqq.js?v=202610232154";
+import { parseSpeedquizzing } from "../js/sqq.js?v=202610232236";
 
 const $ = (id) => document.getElementById(id);
 const bridge = window.webkit?.messageHandlers?.sqz;
@@ -121,16 +132,27 @@ $("ql-list").addEventListener("click", async () => {
     const lists = res.data || [];
     show($("ql-out"), "✓ Verbunden.\n\n" + lists.map((l) => `▸ ${l.listName || l.name}\n` + cueLines(l.cues, 1).join("\n")).join("\n\n"));
   } catch (e) { show($("ql-out"), "✗ " + (e.message || e), true); }
+  refreshLog();
 });
 
-$("ql-reset").addEventListener("click", async () => { await mac("qlabReset"); show($("ql-out"), "Zurückgesetzt."); });
+async function refreshLog() {
+  try { const l = await mac("qlabLog"); show($("ql-log"), "Verlauf (Mac-App ↔ QLab):\n" + l.slice(-14).join("\n")); } catch (e) { /* ältere App-Version */ }
+}
 
-$("osc-send").addEventListener("click", async () => {
-  const address = $("osc-addr").value.trim(); if (!address.startsWith("/")) return;
+$("ql-reset").addEventListener("click", async () => { await mac("qlabReset"); show($("ql-out"), "Zurückgesetzt."); refreshLog(); });
+
+async function sendOsc(address) {
+  if (!address.startsWith("/")) return;
   show($("ql-out"), "Sende " + address + " …");
-  try { show($("ql-out"), address + "\n" + JSON.stringify(JSON.parse(await mac("qlab", { address })), null, 2)); }
-  catch (e) { show($("ql-out"), "✗ " + (e.message || e), true); }
-});
+  try {
+    const r = JSON.parse(await mac("qlab", { address }));
+    show($("ql-out"), `${r.status === "ok" ? "✓" : "✗"} ${address}  →  ${r.status}` + (r.data !== undefined ? "\n" + JSON.stringify(r.data, null, 2) : ""), r.status !== "ok");
+  } catch (e) { show($("ql-out"), "✗ " + (e.message || e), true); }
+  refreshLog();
+}
+$("osc-send").addEventListener("click", () => sendOsc($("osc-addr").value.trim()));
+$("osc-addr").addEventListener("keydown", (e) => { if (e.key === "Enter") sendOsc($("osc-addr").value.trim()); });
+$("quick").addEventListener("click", (e) => { const b = e.target.closest("[data-osc]"); if (b) sendOsc(b.dataset.osc); });
 
 async function soundTest() {
   try {
