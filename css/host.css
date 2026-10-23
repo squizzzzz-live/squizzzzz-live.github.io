@@ -194,3 +194,9 @@
 .btn.weiter:disabled { opacity: .4; cursor: default; }
 #rb-next-label { margin-top: 8px; min-height: 1.3em; font-size: .95rem; }
 @media (max-width: 1050px) { .cols-plan, .runbar { grid-template-columns: 1fr; } .plan-side { position: static; } }
+.pb-clips { margin-top: 8px; } .pb-clips summary { cursor: pointer; } .pb-clips ol { margin: 6px 0 0 70px; font-size: .85rem; color: var(--muted); max-height: 180px; overflow: auto; }
+.pb-qlab { color: rgba(124,240,181,.75); }
+.def-row .pb-lbl { width: 92px; font-size: .82rem; } .def-row .pb-path { min-width: 0; font-size: .8rem; }
+.modal .files li.info { cursor: default; color: var(--muted); }
+.pblock select[data-k="mediaType"] { flex: 1; min-width: 0; }
+.addgrid .btn[data-add-block="sieger"] { grid-column: 1 / -1; }
