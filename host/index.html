@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610230859">
-<link rel="stylesheet" href="../css/host.css?v=202610230859">
+<link rel="stylesheet" href="../css/base.css?v=202610230921">
+<link rel="stylesheet" href="../css/host.css?v=202610230921">
 </head>
 <body>
 <div class="host-wrap">
@@ -144,6 +144,11 @@
           <span id="title-file-name" class="small">kein Bild – automatische Titelkarte</span>
         </div>
         <button id="round-load" class="btn" disabled>Runde laden</button>
+        <div class="otf-start">
+          <h2>Ohne Datei: spontan spielen</h2>
+          <p class="small">Fragen auf Zuruf – Typ wählen, Lösung eintippen (oder später), los.</p>
+          <button id="otf-start" class="btn secondary">Spontane Runde starten</button>
+        </div>
       </div>
 
       <div id="round-live" class="hidden">
@@ -154,7 +159,23 @@
           </div>
           <div class="rstate"><span id="r-state"></span><b id="r-timer"></b></div>
         </div>
-        <div class="qbox">
+        <div class="navrow">
+          <select id="q-jump" title="Springe zu Frage"></select>
+          <button id="otf-toggle" class="btn secondary small">+ Spontane Frage</button>
+        </div>
+        <div id="otf-form" class="otf hidden">
+          <div class="otf-grid">
+            <label>Typ <select id="otf-type">
+              <option value="multi">Multiple Choice</option><option value="letters">Anfangsbuchstabe</option>
+              <option value="numbers">Zahl</option><option value="buzz">Buzzin</option></select></label>
+            <label id="otf-n-wrap">Antworten <select id="otf-n"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
+            <label>Punkte <input id="otf-pts" type="number" min="0" max="100" value="4"></label>
+          </div>
+          <input id="otf-text" class="field" maxlength="200" placeholder="Fragetext fürs Handy (optional – sonst nur vorlesen)">
+          <input id="otf-sol" class="field" maxlength="80" placeholder="Lösung (optional, geht auch später) – z. B. B, T, 1854 oder Text">
+          <div class="row" style="margin-top:12px"><button id="otf-go" class="btn small">Frage starten</button><button id="otf-cancel" class="btn secondary small">Abbrechen</button></div>
+        </div>
+        <div class="qbox" id="qbox">
           <div class="qmain">
             <div id="r-text" class="qtext"></div>
             <ul id="r-opts" class="opts"></ul>
@@ -181,6 +202,7 @@
           <label class="kp-hide">Sperre <select id="lock-who"><option value="player">Spieler</option><option value="team">ganzes Team</option></select></label>
           <label class="kp-hide">für <select id="lock-len"><option value="2">diese + nächste Frage</option><option value="1">nur diese Frage</option></select></label>
           <label class="kp-hide check" style="margin:0"><input type="checkbox" id="b-sendq" checked> Frage aufs Handy</label>
+          <label id="key-wrap" class="hidden">Lösung <input id="q-key" maxlength="40" style="width:110px" placeholder="eintragen"></label>
           <span class="small">Leertaste = nächster Schritt</span>
         </div>
         <div id="buzz-box" class="kp-hide">
@@ -201,6 +223,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="../js/host-app.js?v=202610230859"></script>
+<script type="module" src="../js/host-app.js?v=202610230921"></script>
 </body>
 </html>
