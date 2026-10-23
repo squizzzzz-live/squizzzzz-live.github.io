@@ -1,6 +1,6 @@
 // QLab aus dem Regieplan befüllen. Läuft nur in der Mac-App „SQUIZZZzZ Pult“ (OSC über die Brücke).
 // Nummern: Gruppe = Blocknummer n · n.0 Erklärfilm · n.L1/n.L2 Leinwand (Film → Standbild) · n.1 … Clips · n.x.1 Auflösung
-import { mac, listDir } from "./mac.js?v=202610240044";
+import { mac, listDir } from "./mac.js?v=202610240059";
 
 const AUDIO = /\.(mp3|wav|aiff?|m4a|aac)$/i;
 const VIDEO = /\.(mp4|mov|m4v)$/i;
@@ -72,7 +72,8 @@ export const countCues = (spec) => spec.reduce((s, c) => s + 1 + (c.children ? c
 
 /** Workspace leeren und die Cues anlegen. progress(text) wird laufend aufgerufen. */
 export async function fill(spec, progress = () => {}, opts = {}) {
-  const patch = parseInt(opts.audioPatch, 10) || 0;
+  const patch = parseInt(opts.audioPatch, 10) || 0, stageID = opts.stageID || "";
+  let stageFailed = false;
   const info = await mac("info");
   const abs = (rel) => info.root + "/" + rel;
   if (await q("/showMode").catch(() => false)) throw new Error("QLab steht auf „Show“. Bitte unten links in QLab auf „Edit“ stellen und nochmal befüllen.");
@@ -100,6 +101,7 @@ export async function fill(spec, progress = () => {}, opts = {}) {
     await q(`/cue_id/${id}/name`, [c.name]);
     if (c.cont) await q(`/cue_id/${id}/continueMode`, [c.cont]);
     if (patch && c.type !== "group") await q(`/cue_id/${id}/audioOutputPatchNumber`, [patch]);
+    if (stageID && c.type === "video" && !stageFailed) await q(`/cue_id/${id}/stageID`, [stageID]).catch(() => { stageFailed = true; });
     await q(`/move/${id}`, [index, parentId]);
     done++; progress(`Lege Cues an … ${done}/${total}`);
     if (c.children) for (let k = 0; k < c.children.length; k++) await make(c.children[k], id, k);
@@ -121,10 +123,23 @@ export async function fill(spec, progress = () => {}, opts = {}) {
     if (c.children) for (const k of c.children) await verify(k);
   }
   for (const c of spec) await verify(c);
-  return { total, broken, contLost };
+  return { total, broken, contLost, stageFailed };
 }
 
 /** Alle Cues auf einen Tonausgang (Patch-Nummer in QLab) umstellen – für den Techniktest. */
 export async function setAudioPatch(patch) {
   await q("/cue/*/audioOutputPatchNumber", [parseInt(patch, 10)]);
+}
+/** Alle Video-Cues auf eine Bildausgabe (Stage) umstellen. */
+export async function setStage(stageID) {
+  await q("/cue/*/stageID", [stageID]);
+}
+
+const asList = (v) => Array.isArray(v) ? v : Array.isArray(v?.stages) ? v.stages : v && typeof v === "object" ? Object.values(v) : [];
+/** Ton- und Bildausgänge des Workspace mit Namen: { audio: [{ no, name, id }], video: [{ name, id }] } */
+export async function listOutputs() {
+  const audio = asList(await q("/settings/audio/patchList")).map((p, i) => ({ no: i + 1, name: p.name || `Patch ${i + 1}`, id: p.uniqueID }));
+  let video = [];
+  try { video = asList(await q("/settings/video/stages")).map((s, i) => ({ no: i + 1, name: s.name || `Stage ${i + 1}`, id: s.uniqueID })); } catch (e) { /* ältere QLab-Version */ }
+  return { audio, video };
 }

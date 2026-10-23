@@ -1,11 +1,11 @@
 // Regieplan: den Abend vorbereiten (Reiter „Regieplan“) und im Pult Schritt für Schritt abarbeiten (Leiste im Reiter „Spiel“).
 // Ein Block ist Film, Moderation, Runde, Pause oder Siegerverkündung. Runden zeigen auf eine Datei im Ordner SQUIZZZzZ,
 // die das Pult (Mac-App) erst beim Start der Runde liest. QLab kommt in P3 dazu.
-import { db } from "./fb.js?v=202610240044";
-import { parseSpeedquizzing } from "./sqq.js?v=202610240044";
-import { shrink } from "./images.js?v=202610240044";
-import { buildSpec, fill, countCues, setAudioPatch } from "./qlab.js?v=202610240044";
-import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610240044";
+import { db } from "./fb.js?v=202610240059";
+import { parseSpeedquizzing } from "./sqq.js?v=202610240059";
+import { shrink } from "./images.js?v=202610240059";
+import { buildSpec, fill, countCues, setAudioPatch, setStage, listOutputs } from "./qlab.js?v=202610240059";
+import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610240059";
 import { ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const $ = (id) => document.getElementById(id);
@@ -45,7 +45,7 @@ const store = {
 
 export function initPlan(ctx) {
   // ctx: { game(), err(msg), round (Rundensteuerung), active() → Reiter „Spiel“ offen?, gameTitle() }
-  let blocks = [], pos = -1, done = {}, defaults = {}, qlabState = null, unsub = null;
+  let blocks = [], pos = -1, done = {}, defaults = {}, qlabState = null, unsub = null, outputsTried = false;
   let checks = {}, loadError = "", loading = false, busy = false, pendingEditorRender = false;
   const P = () => `games/${ctx.game()}/private/plan`;
 
@@ -59,6 +59,7 @@ export function initPlan(ctx) {
       defaults = v.defaults || {};
       qlabState = v.qlab || null;
       renderEditor(); renderDefaults(); renderQlab(); renderBar();
+      if (!outputs && !outputsTried) { outputsTried = true; loadOutputs(); }
     });
   }
   function detach() { unsub && unsub(); unsub = null; blocks = []; pos = -1; done = {}; checks = {}; loadError = ""; }
@@ -228,9 +229,11 @@ export function initPlan(ctx) {
       const n = countCues(spec);
       if (!n) throw new Error("Im Regieplan steht noch nichts, was QLab abspielen könnte.");
       if (!confirm(`Der QLab-Workspace „SQUIZZZzZ Live“ wird geleert und aus dem Regieplan neu aufgebaut: ${n} Cues.${warn.length ? "\n\nHinweise:\n• " + warn.join("\n• ") : ""}\n\nFortfahren?`)) { msg.textContent = ""; return; }
-      const r = await fill(spec, (t) => (msg.textContent = t), { audioPatch: defaults.audioPatch || 1 });
+      if (!outputs) await loadOutputs();
+      const r = await fill(spec, (t) => (msg.textContent = t), { audioPatch: pickAudio()?.no || 1, stageID: pickStage()?.id || "" });
       await update(ref(db, P()), { qlab: { at: Date.now(), sig: planSig(), cues: r.total } });
       const lines = [`✓ ${r.total} Cues in QLab angelegt.`];
+      if (r.stageFailed) lines.push("⚠ Die Bildausgabe ließ sich per Fernsteuerung nicht setzen – Video-Cues nutzen die Vorlage aus QLab.");
       if (r.contLost.length) lines.push(`⚠ „automatisch weiter“ fehlt bei ${r.contLost.join(", ")} – Mac-App aktuell (0.1.4)?`);
       if (r.broken.length) lines.push(`⚠ ${r.broken.length} Cues sind in QLab noch nicht spielbar (meist: Ton- oder Bildausgabe fehlt – siehe Erinnerungsliste): ${r.broken.slice(0, 6).join(", ")}${r.broken.length > 6 ? " …" : ""}`);
       if (warn.length) lines.push("Hinweise: " + warn.join(" · "));
@@ -288,23 +291,45 @@ export function initPlan(ctx) {
     box.innerHTML = Object.keys(BUILTIN).map((k) => `<div class="pb-row def-row"><span class="pb-lbl">${DEFAULT_LABEL[k]}</span>
       <input class="pb-path" data-dk="${k}" value="${esc(defaults[k] || "")}" placeholder="${esc(fileName(BUILTIN[k]))}" title="${esc(defaults[k] || BUILTIN[k])}" spellcheck="false">
       <button type="button" class="ic" data-dbrowse="${k}" title="Durchsuchen" ${isMac() ? "" : "disabled"}>…</button></div>`).join("")
-      + `<div class="pb-row def-row"><span class="pb-lbl">Tonausgang</span>
-      <label class="small">Patch <input type="number" min="1" max="16" class="patch-in" data-dk="audioPatch" value="${esc(defaults.audioPatch || "")}" placeholder="1"></label>
-      <button type="button" class="btn secondary small" id="patch-apply" ${isMac() ? "" : "disabled"}>Auf alle Cues anwenden</button></div>
-      <p class="small" style="margin:4px 0 0">Nummer = Reihenfolge in QLab unter Workspace-Einstellungen → Audio Outputs (1 = oberster Patch). Gilt beim Befüllen für alle Ton- und Film-Cues.</p>
+      + outputsHtml();
+  }
+  // Ton- und Bildausgänge aus QLab (mit Namen) – Vorbelegung: Ton = Patch 1, Bild = „Integriertes Retina Display“ bzw. erste Stage
+  let outputs = null, outputsErr = "";
+  async function loadOutputs() {
+    if (!isMac()) return;
+    outputsErr = ""; try { outputs = await listOutputs(); } catch (e) { outputs = null; outputsErr = e.message || String(e); }
+    renderDefaults();
+  }
+  const pickAudio = () => outputs?.audio.find((a) => a.id === defaults.audioPatchID) || outputs?.audio.find((a) => a.no === defaults.audioPatch) || outputs?.audio[0] || null;
+  const pickStage = () => outputs?.video.find((v) => v.id === defaults.stageID) || outputs?.video.find((v) => /retina/i.test(v.name)) || outputs?.video[0] || null;
+  function outputsHtml() {
+    if (!isMac()) return `<p class="small" style="margin-top:10px">Ton- und Bildausgang: nur in der Mac-App.</p>`;
+    if (!outputs) return `<div class="pb-row def-row"><span class="pb-lbl">Ausgänge</span><button type="button" class="btn secondary small" id="out-load">Aus QLab laden</button></div>${outputsErr ? `<p class="small bad-note">✗ ${esc(outputsErr)}</p>` : ""}`;
+    const a = pickAudio(), v = pickStage();
+    const sel = (kind, list, cur) => `<select class="out-sel" data-out="${kind}">${list.map((x) => `<option value="${esc(x.id)}" ${cur && x.id === cur.id ? "selected" : ""}>${x.no}: ${esc(x.name)}</option>`).join("") || "<option>– keine –</option>"}</select>`;
+    return `<div class="pb-row def-row"><span class="pb-lbl">Tonausgang</span>${sel("audio", outputs.audio, a)}</div>
+      <div class="pb-row def-row"><span class="pb-lbl">Bildausgang</span>${sel("video", outputs.video, v)}</div>
+      <div class="pb-row def-row"><span class="pb-lbl"></span><button type="button" class="btn secondary small" id="patch-apply">Auf alle Cues anwenden</button><button type="button" class="ic" id="out-load" title="Ausgänge neu aus QLab laden">↻</button></div>
+      <p class="small" style="margin:4px 0 0">Gilt beim Befüllen für alle Ton- und Film-Cues. „Auf alle Cues anwenden“ stellt die vorhandenen Cues um (Techniktest).</p>
       <p class="small" id="patch-msg"></p>`;
   }
   const defBox = $("plan-defaults");
   defBox.addEventListener("change", (e) => {
+    const out = e.target.dataset.out;
+    if (out === "audio") { const a = outputs.audio.find((x) => x.id === e.target.value); update(ref(db, P()), { "defaults/audioPatch": a?.no || null, "defaults/audioPatchID": a?.id || null }); return; }
+    if (out === "video") { update(ref(db, P()), { "defaults/stageID": e.target.value || null }); return; }
     const k = e.target.dataset.dk; if (!k) return;
-    const v = k === "audioPatch" ? (parseInt(e.target.value, 10) || null) : (relPath(e.target.value) || null);
-    update(ref(db, P()), { [`defaults/${k}`]: v });
+    update(ref(db, P()), { [`defaults/${k}`]: relPath(e.target.value) || null });
   });
   defBox.addEventListener("click", async (e) => {
+    if (e.target.closest("#out-load")) { loadOutputs(); return; }
     if (!e.target.closest("#patch-apply")) return;
-    const p = parseInt(defaults.audioPatch, 10) || 1, msg = $("patch-msg");
-    try { msg.textContent = "Stelle um …"; await setAudioPatch(p); msg.textContent = `✓ Alle Cues spielen jetzt über Patch ${p}.`; msg.className = "small ok-note"; }
-    catch (ex) { msg.textContent = "✗ " + (ex.message || ex); msg.className = "small bad-note"; }
+    const a = pickAudio(), v = pickStage(), msg = $("patch-msg"), lines = [];
+    msg.textContent = "Stelle um …"; msg.className = "small";
+    if (a) { try { await setAudioPatch(a.no); lines.push(`✓ Ton: alle Cues über „${a.name}“.`); } catch (ex) { lines.push("✗ Ton: " + (ex.message || ex)); } }
+    if (v) { try { await setStage(v.id); lines.push(`✓ Bild: alle Video-Cues auf „${v.name}“.`); } catch (ex) { lines.push("✗ Bild: " + (ex.message || ex)); } }
+    msg.innerHTML = lines.map((l) => `<div>${esc(l)}</div>`).join("") || "Keine Ausgänge gefunden.";
+    msg.className = "small " + (lines.some((l) => l.startsWith("✗")) ? "bad-note" : "ok-note");
   });
   defBox.addEventListener("click", (e) => {
     const k = e.target.closest("[data-dbrowse]")?.dataset.dbrowse; if (!k) return;
