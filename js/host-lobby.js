@@ -1,6 +1,6 @@
 // Host: Inhalte der Warteseite (global für alle Abende) – Bilder, Spruch-Folien, Lauftext, Einstellungen.
-import { db } from "./fb.js?v=202610231754";
-import { shrink } from "./images.js?v=202610231754";
+import { db } from "./fb.js?v=202610232110";
+import { shrink } from "./images.js?v=202610232110";
 import { ref, set, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const $ = (id) => document.getElementById(id);
