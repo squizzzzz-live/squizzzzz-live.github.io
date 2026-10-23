@@ -1,10 +1,12 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610232243";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610232243";
-import { initRound } from "./host-round.js?v=202610232243";
-import { initLobby } from "./host-lobby.js?v=202610232243";
-import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610232243";
-import { shrink } from "./images.js?v=202610232243";
+import { startRibbons } from "./ribbons.js?v=202610232300";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610232300";
+import { initRound } from "./host-round.js?v=202610232300";
+import { initLobby } from "./host-lobby.js?v=202610232300";
+import { initPlan } from "./host-plan.js?v=202610232300";
+import { isMac } from "./mac.js?v=202610232300";
+import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610232300";
+import { shrink } from "./images.js?v=202610232300";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
@@ -12,7 +14,8 @@ import { ref, get, set, update, remove, onValue, serverTimestamp }
 
 startRibbons();
 const $ = (id) => document.getElementById(id);
-const VIEWS = ["v-login", "v-nohost", "v-new", "v-spieler", "v-rezeption", "v-warteseite", "v-spiel"];
+const VIEWS = ["v-login", "v-nohost", "v-new", "v-spieler", "v-rezeption", "v-warteseite", "v-regieplan", "v-spiel"];
+const TABS = ["rezeption", "spieler", "warteseite", "regieplan", "spiel"];
 const show = (v) => VIEWS.forEach((id) => $(id).classList.toggle("hidden", id !== v));
 const err = (t) => { $("error").textContent = t || ""; $("error").classList.toggle("hidden", !t); };
 const store = {
@@ -35,6 +38,11 @@ const roundCtl = initRound({
   game: () => game, roster: () => roster, claims: () => claims, err,
   onResults: () => renderBoard(), active: () => tab() === "spiel",
   left: () => away, buzzerFor: (p) => buzzerFor(p),
+  onRound: () => planCtl && planCtl.renderBar(),
+  onFinished: (blockId) => planCtl && planCtl.roundFinished(blockId),
+});
+const planCtl = initPlan({
+  game: () => game, err, round: roundCtl, active: () => tab() === "spiel", gameTitle: () => pub.title || "",
 });
 
 // ---------- Anmeldung ----------
@@ -92,6 +100,7 @@ function openGame(code) {
   on("teams", (v) => (teams = v || {}));
   on("nameIndex", (v) => { nameIndex = v || {}; repairIndex(); });
   roundCtl.attach();
+  planCtl.attach();
   route();
 }
 let awayUnsub = null, awayQid = null;
@@ -115,7 +124,7 @@ async function repairIndex() {
 const tab = () => (location.hash || "#rezeption").slice(1);
 function route() {
   if (!game) return;
-  const t = ["rezeption", "spieler", "warteseite", "spiel"].includes(tab()) ? tab() : "rezeption";
+  const t = TABS.includes(tab()) ? tab() : "rezeption";
   document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === t));
   show("v-" + t); renderAll();
 }
@@ -254,7 +263,7 @@ $("qr-png").addEventListener("click", () => {
   img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(qrSvg());
 });
 confirmBtn($("end"), "Spiel beenden & löschen", async () => {
-  unsub.forEach((u) => u()); unsub = []; roundCtl.detach(); awayUnsub && awayUnsub();
+  unsub.forEach((u) => u()); unsub = []; roundCtl.detach(); planCtl.detach(); awayUnsub && awayUnsub();
   await remove(ref(db, G())).catch((e) => err("Löschen fehlgeschlagen: " + e.code));
   store.set(null); location.hash = ""; noGame();
 });
@@ -292,6 +301,8 @@ async function soundOn() {
   if (ok) playBuzzer(null, "Ton ist an");
 }
 $("sound-btn").addEventListener("click", soundOn);
+// In der Mac-App darf Ton ohne Klick laufen – dann gleich freischalten
+if (isMac()) unlockAudio().catch(() => {});
 $("sound-chip").addEventListener("click", soundOn);
 onAudioChange((on) => {
   $("sound-chip").textContent = on ? "🔊 Ton an" : "🔈 Ton aus";

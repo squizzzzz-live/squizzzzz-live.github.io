@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="sqz-build" content="202610232243">
+<meta name="sqz-build" content="202610232300">
 <meta name="theme-color" content="#0B106C">
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -11,8 +11,8 @@
 <link rel="apple-touch-icon" href="../icons/pult-180.png">
 <meta name="apple-mobile-web-app-title" content="SQUIZZZzZ Pult">
 <title>SQUIZZZzZ Pult</title>
-<link rel="stylesheet" href="../css/base.css?v=202610232243">
-<link rel="stylesheet" href="../css/host.css?v=202610232243">
+<link rel="stylesheet" href="../css/base.css?v=202610232300">
+<link rel="stylesheet" href="../css/host.css?v=202610232300">
 </head>
 <body>
 <div class="host-wrap">
@@ -22,6 +22,7 @@
       <a href="#rezeption" data-tab="rezeption">Rezeption</a>
       <a href="#spieler" data-tab="spieler">Spieler</a>
       <a href="#warteseite" data-tab="warteseite">Warteseite</a>
+      <a href="#regieplan" data-tab="regieplan">Regieplan</a>
       <a href="#spiel" data-tab="spiel">Spiel</a>
     </nav>
     <div class="who"><button id="reload-btn" class="sound-chip" title="App neu laden (holt die neueste Version)">↻</button><button id="sound-chip" class="sound-chip off hidden" title="Ton für Buzzernamen">🔈 Ton aus</button><span id="game-badge" class="badge hidden"></span><span id="who" class="hidden"></span></div>
@@ -127,8 +128,56 @@
     </div>
   </section>
 
+  <!-- Seite: Regieplan (Vorbereitung) -->
+  <section id="v-regieplan" class="cols-plan hidden">
+    <div class="panel">
+      <h2>Regieplan</h2>
+      <p class="small">Der Ablauf des Abends, Block für Block. Am Abend arbeitet das Pult ihn mit WEITER (Leertaste) ab. Runden zeigen auf ihre Datei im Ordner SQUIZZZzZ – gelesen wird sie erst, wenn die Runde dran ist.</p>
+      <p id="plan-mac" class="small warn-note hidden">Du bist nicht in der Mac-App „SQUIZZZzZ Pult“: Durchsuchen und Prüfen gehen nur dort. Pfade kannst Du hier trotzdem eintragen.</p>
+      <div id="plan-empty" class="plan-empty">Noch keine Blöcke – rechts hinzufügen.</div>
+      <div id="plan-list" class="plan-list"></div>
+    </div>
+    <div class="plan-side">
+      <div class="panel">
+        <h2>Block hinzufügen</h2>
+        <div class="addgrid">
+          <button type="button" class="btn secondary small" data-add-block="film">🎬 Film</button>
+          <button type="button" class="btn secondary small" data-add-block="moderation">🎤 Moderation</button>
+          <button type="button" class="btn small" data-add-block="runde">🎯 Runde</button>
+          <button type="button" class="btn secondary small" data-add-block="pause">☕ Pause</button>
+          <button type="button" class="btn secondary small" data-add-block="sieger">🏆 Siegerverkündung</button>
+        </div>
+        <p class="small" style="margin-top:12px">Reihenfolge mit ↑ ↓. „Reserve“-Blöcke überspringt WEITER – im Pult antippen, um sie einzuschieben.</p>
+      </div>
+      <div class="panel">
+        <h2>Vor dem Abend</h2>
+        <button type="button" id="plan-check" class="btn small">Alle Runden prüfen</button>
+        <p id="plan-check-msg" class="small" style="margin-top:10px"></p>
+        <div class="row">
+          <button type="button" id="plan-export" class="btn secondary small">Als Datei sichern</button>
+          <label class="btn secondary small" style="margin-top:0">Aus Datei laden …<input type="file" id="plan-import" accept=".json,application/json" class="hidden"></label>
+        </div>
+        <p class="small" style="margin-top:12px">QLab-Cues hängen sich ab Ausbaustufe P3 automatisch an (je Runde eine Gruppe).</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Seite: Spiel -->
   <section id="v-spiel" class="cols-game hidden">
+    <div class="panel runbar" id="runbar">
+      <div class="rb-content">
+        <div id="rb-plan" class="hidden">
+          <div class="rb-strip" id="rb-strip"></div>
+          <div class="kicker" id="rb-kind"></div>
+          <div class="rb-title" id="rb-title"></div>
+          <div class="rb-notes hidden" id="rb-notes"></div>
+          <p id="rb-error" class="error hidden"></p>
+          <div id="rb-fallback" class="loadrow hidden"><label class="btn secondary small">Rundendatei von Hand wählen …<input type="file" id="rb-file" accept=".sqq,.sqb,.sqn" class="hidden"></label></div>
+        </div>
+        <div id="rb-none" class="small">Kein Regieplan – im Reiter <a href="#regieplan">Regieplan</a> anlegen, oder unten eine Runde direkt laden.</div>
+      </div>
+      <div class="rb-go"><button type="button" id="rb-next" class="btn weiter">WEITER</button><div class="small" id="rb-next-label"></div></div>
+    </div>
     <aside class="panel">
       <div class="seg"><button id="sb-players" class="on">Spieler</button><button id="sb-teams">Gruppen</button></div>
       <label class="check"><input type="checkbox" id="sb-show"> Punkte anzeigen</label>
@@ -234,7 +283,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="../js/host-app.js?v=202610232243"></script>
-<script type="module" src="../js/update.js?v=202610232243"></script>
+<script type="module" src="../js/host-app.js?v=202610232300"></script>
+<script type="module" src="../js/update.js?v=202610232300"></script>
 </body>
 </html>

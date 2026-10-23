@@ -1,9 +1,9 @@
 // Host: Runde laden, Fragen steuern, auflösen, Punkte führen (Keypad).
-import { db } from "./fb.js?v=202610232243";
-import { parseSpeedquizzing, toNumber } from "./sqq.js?v=202610232243";
-import { scoreQuestion } from "./scoring.js?v=202610232243";
-import { playBuzzer } from "./buzzer.js?v=202610232243";
-import { shrink } from "./images.js?v=202610232243";
+import { db } from "./fb.js?v=202610232300";
+import { parseSpeedquizzing, toNumber } from "./sqq.js?v=202610232300";
+import { scoreQuestion } from "./scoring.js?v=202610232300";
+import { playBuzzer } from "./buzzer.js?v=202610232300";
+import { shrink } from "./images.js?v=202610232300";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -65,21 +65,38 @@ export function initRound(ctx) {
     pickedTitle = e.target.files[0] || null;
     $("title-file-name").textContent = pickedTitle ? pickedTitle.name : "kein Bild – automatische Titelkarte";
   });
+  /** Prüft eine umgewandelte Runde, ob die App sie spielen kann (wirft sonst einen Fehler). */
+  function assertPlayable(parsed, name) {
+    if (parsed.mode === "nearest") throw new Error(`„${name}“ ist eine Nearest-Wins-Runde – die kommt als Nächstes. Bitte eine Keypad- (.sqq) oder Buzzin-Runde (.sqb) wählen.`);
+    const unknown = parsed.questions.filter((q) => q.type === "unknown").length;
+    if (unknown) throw new Error(`${unknown} Frage(n) in „${name}“ haben einen unbekannten Typ.`);
+  }
+  /** Runde ins Spiel laden. settings (aus dem Regieplan): duration, points, speed, lockWho, lockLen, sendq, title, blockId */
+  async function loadParsed(parsed, titleImage = null, settings = {}) {
+    assertPlayable(parsed, parsed.source || parsed.title);
+    const st = settings, key = "r" + Date.now();
+    const title = st.title || parsed.title;
+    if (st.duration) $("duration").value = st.duration;
+    if (st.lockWho) $("lock-who").value = st.lockWho;
+    if (st.lockLen) $("lock-len").value = String(st.lockLen);
+    if (st.sendq !== undefined) $("b-sendq").checked = !!st.sendq;
+    await set(ref(db, `${G()}/private/round`), {
+      ...parsed, title, key, idx: 0, duration: st.duration || 20,
+      points: st.points ?? parsed.points, speed: st.speed ?? (parsed.bonus[0] || 0),
+      blockId: st.blockId || null, loadedAt: Date.now(),
+    });
+    await update(ref(db, `${G()}/public`), {
+      state: "ready", roundTitle: title, roundImage: titleImage, qIndex: 0, qCount: parsed.questions.length,
+      questionId: null, buzzId: null, buzz: null, buzzList: null, locks: null, q: null, reveal: null, openedAt: null,
+    });
+  }
   $("round-load").addEventListener("click", async () => {
     if (!pickedRound) return;
     const btn = $("round-load"); btn.disabled = true; btn.textContent = "Wird geladen …"; ctx.err("");
     try {
       const parsed = parseSpeedquizzing(await pickedRound.text(), pickedRound.name);
-      if (parsed.mode === "nearest") throw new Error(`„${pickedRound.name}“ ist eine Nearest-Wins-Runde – die kommt als Nächstes. Bitte eine Keypad- (.sqq) oder Buzzin-Runde (.sqb) wählen.`);
-      const unknown = parsed.questions.filter((q) => q.type === "unknown").length;
-      if (unknown) throw new Error(`${unknown} Frage(n) haben einen unbekannten Typ – Runde nicht geladen.`);
       const titleImage = pickedTitle ? await shrink(pickedTitle, 1280, "image/jpeg", 0.85) : null;
-      const key = "r" + Date.now();
-      await set(ref(db, `${G()}/private/round`), { ...parsed, key, idx: 0, duration: 20, speed: parsed.bonus[0] || 0, loadedAt: Date.now() });
-      await update(ref(db, `${G()}/public`), {
-        state: "ready", roundTitle: parsed.title, roundImage: titleImage, qIndex: 0, qCount: parsed.questions.length,
-        questionId: null, q: null, reveal: null, openedAt: null,
-      });
+      await loadParsed(parsed, titleImage);
       pickedRound = pickedTitle = null; $("round-file").value = ""; $("title-file").value = "";
       $("round-file-name").textContent = "keine Datei"; $("title-file-name").textContent = "kein Bild – automatische Titelkarte";
     } catch (ex) { ctx.err(ex.message); }
@@ -194,10 +211,15 @@ export function initRound(ctx) {
     const b = $("round-unload");
     if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Wirklich entladen? Nochmal klicken"; setTimeout(() => { b.dataset.confirm = ""; b.textContent = "Runde beenden & entladen"; }, 4000); return; }
     b.dataset.confirm = ""; b.textContent = "Runde beenden & entladen";
+    await finishRound();
+  }
+  async function finishRound() {
+    const blockId = round?.blockId || null;
     clearTimeout(closeTimer);
     await remove(ref(db, `${G()}/private/round`));
     await remove(ref(db, `${G()}/private/current`));
     await update(ref(db, `${G()}/public`), { state: "lobby", roundTitle: null, roundImage: null, qIndex: null, qCount: null, questionId: null, buzzId: null, buzz: null, locks: null, q: null, reveal: null, openedAt: null });
+    ctx.onFinished && ctx.onFinished(blockId);
   }
 
   // ---------- Spontane Fragen (on the fly) ----------
@@ -264,24 +286,27 @@ export function initRound(ctx) {
   $("b-reveal").addEventListener("click", revealBuzz);
   document.addEventListener("keydown", (e) => {
     if (!round || !ctx.active() || e.target.closest("input, textarea, select")) return;
-    if (e.code === "Space") { e.preventDefault(); primaryAction()?.(); }
     if (current()?.type === "buzz" && pub.state === "buzzed") { if (e.key === "r" || e.key === "R") judge(true); if (e.key === "f" || e.key === "F") judge(false); }
     if (e.key === "ArrowRight") go(1);
     if (e.key === "ArrowLeft") go(-1);
   });
-  function primaryAction() {
-    if (current()?.type === "buzz") {
-      if (pub.state === "ready") return () => openBuzz(0);
-      if (pub.state === "reveal") return idx < round.questions.length - 1 ? () => go(1) : null;
-      return null;
+  const LABELS = { open: "Antworten schließen", closed: "Auflösen", next: "Nächste Frage", show: "Frage zeigen", buzz: "Buzzer freigeben" };
+  /** Was macht WEITER gerade innerhalb der Runde? { label, fn } oder null (warten bzw. Ende der Runde) */
+  function step() {
+    if (!round) return null;
+    const q = current(), last = idx >= (round.questions?.length || 0) - 1;
+    if (!q) return null;
+    if (q.type === "buzz") {
+      if (pub.state === "ready") return { label: LABELS.buzz, fn: () => openBuzz(0) };
+      if (pub.state === "reveal") return last ? null : { label: LABELS.next, fn: () => go(1) };
+      return { wait: pub.state === "buzzed" ? "R = richtig · F = falsch" : "Warte auf den ersten Buzz …" };
     }
-    if (pub.state === "ready") return openQuestion;
-    if (pub.state === "open") return closeAnswers;
-    if (pub.state === "closed") return revealAnswer;
-    if (pub.state === "reveal") return idx < round.questions.length - 1 ? () => go(1) : null;
+    if (pub.state === "ready") return { label: LABELS.show, fn: openQuestion };
+    if (pub.state === "open") return { label: LABELS.open, fn: closeAnswers };
+    if (pub.state === "closed") return { label: LABELS.closed, fn: revealAnswer };
+    if (pub.state === "reveal") return last ? null : { label: LABELS.next, fn: () => go(1) };
     return null;
   }
-
   // ---------- Anzeige ----------
   function fmtAnswer(type, value, options) {
     if (value === undefined || value === null) return "–";
@@ -298,6 +323,7 @@ export function initRound(ctx) {
   }
 
   function render() {
+    ctx.onRound && ctx.onRound();
     const has = !!round;
     $("round-empty").classList.toggle("hidden", has);
     $("round-live").classList.toggle("hidden", !has);
@@ -398,5 +424,8 @@ export function initRound(ctx) {
     });
   }
 
-  return { attach, detach, render, totals };
+  return {
+    attach, detach, render, totals, loadParsed, finishRound, step, assertPlayable,
+    info: () => round ? { live: true, blockId: round.blockId || null, title: round.title, idx, n: round.questions?.length || 0, state: pub.state } : { live: false },
+  };
 }

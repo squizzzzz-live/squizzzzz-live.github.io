@@ -137,3 +137,60 @@
 .c-nav .btn { min-width: 104px; }
 .c-act .btn { padding: 12px 26px; font-size: 1rem; }
 .controls .btn.off { display: none; }
+
+/* Regieplan – Vorbereitung */
+.cols-plan { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr); gap: 24px; margin-top: 26px; align-items: start; }
+.plan-side { display: grid; gap: 24px; position: sticky; top: 16px; }
+.addgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.addgrid .btn { margin: 0; padding: 11px 12px; }
+.plan-empty { margin-top: 18px; padding: 26px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 14px; }
+.warn-note { color: #FFC46B; }
+.plan-list { display: grid; gap: 12px; margin-top: 16px; }
+.pblock { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 14px; border-radius: 16px; background: rgba(6,9,69,.45); border: 1px solid var(--line); }
+.pblock.reserve { border-style: dashed; opacity: .8; }
+.pblock.bad { border-color: rgba(229,72,77,.8); }
+.pb-kind { font-size: 1.6rem; text-align: center; padding-top: 4px; }
+.pb-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pb-num { font-weight: 900; color: var(--orange); min-width: 1.4em; }
+.pb-type, .pblock select { padding: 7px 8px; border-radius: 10px; border: 1px solid var(--line); background: rgba(6,9,69,.6); color: var(--text); font: inherit; }
+.pb-title { flex: 1; min-width: 180px; background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--text); font: inherit; font-weight: 800; font-size: 1.05rem; padding: 6px 2px; }
+.pb-res { margin: 0; font-size: .88rem; }
+.pb-tools { display: flex; gap: 4px; margin-left: auto; }
+.ic { background: rgba(255,255,255,.08); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 5px 9px; font: inherit; font-weight: 800; cursor: pointer; }
+.ic:disabled { opacity: .3; cursor: default; }
+.ic.del { color: #FFB3B3; }
+.pb-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.pb-row .btn { margin: 0; }
+.pb-lbl { width: 70px; color: var(--muted); font-size: .88rem; }
+.pb-path { flex: 1; min-width: 200px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,.2); color: var(--text); font: inherit; font-size: .88rem; }
+.pb-check { margin-top: 8px; font-size: .88rem; font-weight: 700; } .pb-check.ok { color: #7CF0B5; } .pb-check.bad { color: #FFB3B3; }
+.pb-set { margin-top: 10px; gap: 14px; font-size: .9rem; }
+.pb-set input::placeholder { color: rgba(244,245,255,.4); }
+.pb-hint { margin-top: 6px; }
+.pb-notes { width: 100%; margin-top: 10px; min-height: 42px; resize: vertical; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,.2); color: var(--text); font: inherit; font-size: .9rem; }
+
+/* Dateiauswahl (Mac-App) */
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(3,5,40,.7); display: grid; place-items: center; padding: 24px; }
+.modal.hidden { display: none !important; }
+.modal-box { width: min(760px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: var(--navy-deep); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; }
+.modal .crumbs { margin-top: 6px; word-break: break-all; }
+.modal .files { list-style: none; padding: 0; margin: 12px 0 0; overflow: auto; border-top: 1px solid var(--line); }
+.modal .files li { padding: 9px 6px; border-bottom: 1px solid rgba(255,255,255,.06); cursor: pointer; }
+.modal .files li:hover { background: rgba(255,255,255,.07); }
+.modal .files li.pick { color: var(--orange); font-weight: 700; }
+
+/* Regieplan – Ablaufleiste im Pult */
+.runbar { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: center; }
+.rb-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px; scrollbar-width: thin; }
+.chip { flex: none; border: 1px solid var(--line); background: rgba(6,9,69,.55); color: var(--muted); font: inherit; font-size: .85rem; font-weight: 700; padding: 7px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.chip.done { opacity: .45; text-decoration: line-through; }
+.chip.reserve { border-style: dashed; }
+.chip.now { background: var(--orange); color: var(--navy-deep); border-color: var(--orange); opacity: 1; text-decoration: none; }
+.rb-title { font-size: 1.7rem; font-weight: 900; margin-top: 4px; overflow-wrap: anywhere; }
+.rb-notes { margin-top: 8px; padding: 10px 14px; border-radius: 12px; background: rgba(255,142,0,.1); border-left: 3px solid var(--orange); font-size: 1.05rem; white-space: pre-wrap; }
+.rb-go { text-align: center; }
+.btn.weiter { width: 100%; margin: 0; padding: 22px 20px; font-size: 1.6rem; font-weight: 900; letter-spacing: .08em; }
+.btn.weiter:disabled { opacity: .4; cursor: default; }
+#rb-next-label { margin-top: 8px; min-height: 1.3em; font-size: .95rem; }
+@media (max-width: 1050px) { .cols-plan, .runbar { grid-template-columns: 1fr; } .plan-side { position: static; } }
