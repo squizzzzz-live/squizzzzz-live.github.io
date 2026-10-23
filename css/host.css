@@ -200,3 +200,6 @@
 .modal .files li.info { cursor: default; color: var(--muted); }
 .pblock select[data-k="mediaType"] { flex: 1; min-width: 0; }
 .addgrid .btn[data-add-block="sieger"] { grid-column: 1 / -1; }
+.qlab-box { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.qlab-box .btn { margin: 0; }
+.ok-note { color: #7CF0B5; } .bad-note { color: #FFB3B3; }

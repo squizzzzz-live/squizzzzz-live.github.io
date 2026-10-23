@@ -1,10 +1,11 @@
 // Regieplan: den Abend vorbereiten (Reiter „Regieplan“) und im Pult Schritt für Schritt abarbeiten (Leiste im Reiter „Spiel“).
 // Ein Block ist Film, Moderation, Runde, Pause oder Siegerverkündung. Runden zeigen auf eine Datei im Ordner SQUIZZZzZ,
 // die das Pult (Mac-App) erst beim Start der Runde liest. QLab kommt in P3 dazu.
-import { db } from "./fb.js?v=202610232346";
-import { parseSpeedquizzing } from "./sqq.js?v=202610232346";
-import { shrink } from "./images.js?v=202610232346";
-import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610232346";
+import { db } from "./fb.js?v=202610240008";
+import { parseSpeedquizzing } from "./sqq.js?v=202610240008";
+import { shrink } from "./images.js?v=202610240008";
+import { buildSpec, fill, countCues } from "./qlab.js?v=202610240008";
+import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610240008";
 import { ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const $ = (id) => document.getElementById(id);
@@ -44,7 +45,7 @@ const store = {
 
 export function initPlan(ctx) {
   // ctx: { game(), err(msg), round (Rundensteuerung), active() → Reiter „Spiel“ offen?, gameTitle() }
-  let blocks = [], pos = -1, done = {}, defaults = {}, unsub = null;
+  let blocks = [], pos = -1, done = {}, defaults = {}, qlabState = null, unsub = null;
   let checks = {}, loadError = "", loading = false, busy = false, pendingEditorRender = false;
   const P = () => `games/${ctx.game()}/private/plan`;
 
@@ -56,7 +57,8 @@ export function initPlan(ctx) {
       pos = typeof v.pos === "number" ? v.pos : -1;
       done = v.done || {};
       defaults = v.defaults || {};
-      renderEditor(); renderDefaults(); renderBar();
+      qlabState = v.qlab || null;
+      renderEditor(); renderDefaults(); renderQlab(); renderBar();
     });
   }
   function detach() { unsub && unsub(); unsub = null; blocks = []; pos = -1; done = {}; checks = {}; loadError = ""; }
@@ -191,6 +193,51 @@ export function initPlan(ctx) {
     for (const b of blocks) if (b.type !== "moderation") await checkBlock(b, cache);
     const checked = blocks.filter((b) => b.type !== "moderation"), bad = checked.filter((b) => !checks[b.id]?.ok).length;
     $("plan-check-msg").textContent = bad ? `✗ ${bad} von ${checked.length} Blöcken haben ein Problem – rot markiert.` : `✓ Alle ${checked.length} Blöcke vollständig.`;
+  });
+
+  // ---------- QLab befüllen ----------
+  const planSig = () => {
+    const str = JSON.stringify({ b: blocks.map(({ notes, reserve, s, ...rest }) => rest), d: defaults });
+    let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+    return String(h);
+  };
+  function renderQlab() {
+    const el = $("qlab-state"); if (!el) return;
+    if (!qlabState) { el.textContent = "Noch nicht befüllt."; el.className = "small"; return; }
+    const t = new Date(qlabState.at).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const changed = qlabState.sig !== planSig();
+    el.textContent = `Zuletzt befüllt: ${t}` + (changed ? " · ⚠ Regieplan seitdem geändert – bitte neu befüllen." : " · passt zum Regieplan.");
+    el.className = "small " + (changed ? "warn-note" : "ok-note");
+  }
+  const qCount = new Map();
+  async function countQuestions(b) {
+    if (checks[b.id + ":n"]) return checks[b.id + ":n"];
+    if (!b.file) return 0;
+    if (!qCount.has(b.file)) qCount.set(b.file, readText(b.file).then((x) => parseSpeedquizzing(x, fileName(b.file)).questions.length).catch(() => 0));
+    return qCount.get(b.file);
+  }
+  $("qlab-fill").addEventListener("click", async () => {
+    const msg = $("qlab-msg"), btn = $("qlab-fill");
+    msg.className = "small"; btn.disabled = true;
+    try {
+      if (!isMac()) throw new Error("QLab befüllen geht nur in der Mac-App „SQUIZZZzZ Pult“.");
+      if (ctx.round.info().live) throw new Error("Während eine Runde läuft, befülle ich QLab nicht neu.");
+      if (!blocks.length) throw new Error("Der Regieplan ist leer.");
+      msg.textContent = "Stelle die Cue-Liste zusammen …";
+      const { spec, warn } = await buildSpec(blocks, eff, titleOf, countQuestions);
+      const n = countCues(spec);
+      if (!n) throw new Error("Im Regieplan steht noch nichts, was QLab abspielen könnte.");
+      if (!confirm(`Der QLab-Workspace „SQUIZZZzZ Live“ wird geleert und aus dem Regieplan neu aufgebaut: ${n} Cues.${warn.length ? "\n\nHinweise:\n• " + warn.join("\n• ") : ""}\n\nFortfahren?`)) { msg.textContent = ""; return; }
+      const r = await fill(spec, (t) => (msg.textContent = t));
+      await update(ref(db, P()), { qlab: { at: Date.now(), sig: planSig(), cues: r.total } });
+      const lines = [`✓ ${r.total} Cues in QLab angelegt.`];
+      if (r.contLost.length) lines.push(`⚠ „automatisch weiter“ fehlt bei ${r.contLost.join(", ")} – Mac-App aktuell (0.1.4)?`);
+      if (r.broken.length) lines.push(`⚠ ${r.broken.length} Cues sind in QLab noch nicht spielbar (meist: Ton- oder Bildausgabe fehlt – siehe Erinnerungsliste): ${r.broken.slice(0, 6).join(", ")}${r.broken.length > 6 ? " …" : ""}`);
+      if (warn.length) lines.push("Hinweise: " + warn.join(" · "));
+      msg.innerHTML = lines.map((l) => `<div>${esc(l)}</div>`).join("");
+      msg.className = "small " + (r.broken.length || r.contLost.length ? "warn-note" : "ok-note");
+    } catch (e) { msg.textContent = "✗ " + (e.message || e); msg.className = "small bad-note"; }
+    finally { btn.disabled = false; }
   });
 
   // Export / Import (Regieplan als Datei – für den nächsten Abend oder als Vorlage)
