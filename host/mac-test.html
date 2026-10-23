@@ -147,7 +147,10 @@ async function sendOsc(address) {
   try {
     const r = JSON.parse(await mac("qlab", { address }));
     show($("ql-out"), `${r.status === "ok" ? "✓" : "✗"} ${address}  →  ${r.status}` + (r.data !== undefined ? "\n" + JSON.stringify(r.data, null, 2) : ""), r.status !== "ok");
-  } catch (e) { show($("ql-out"), "✗ " + (e.message || e), true); }
+  } catch (e) {
+    const m = address.match(/^\/cue\/([^/]+)\//);
+    show($("ql-out"), "✗ " + (e.message || e) + (m ? `\nQLab schweigt, wenn es keinen Cue mit der Nummer ${m[1]} gibt. Nummern in der Cue-Liste oben prüfen.` : ""), true);
+  }
   refreshLog();
 }
 $("osc-send").addEventListener("click", () => sendOsc($("osc-addr").value.trim()));
