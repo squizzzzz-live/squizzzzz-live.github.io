@@ -97,6 +97,12 @@ final class QLab {
     private var workspace: String?
     private(set) var workspaceName: String?
 
+    init() {
+        // Socket und Antwort-Empfänger (UDP 53001) gleich beim Start öffnen,
+        // sonst kann die allererste Antwort von QLab ankommen, bevor jemand zuhört.
+        q.async { self.ensureSocket() }
+    }
+
     func reset() {
         q.async {
             self.workspace = nil
@@ -155,13 +161,23 @@ final class QLab {
         }
     }
 
+    /// Läuft auf q. Ohne auf eine Antwort zu warten.
+    private func fire(_ address: String, _ args: [Any]) {
+        ensureSocket()
+        conn?.send(content: OSC.message(address, args), completion: .contentProcessed { _ in })
+    }
+
     static func object(_ json: String) -> [String: Any]? {
         (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any]
     }
 
-    private func ensureWorkspace(_ done: @escaping (String?) -> Void) {
+    private func ensureWorkspace(_ done: @escaping (String?) -> Void, retry: Bool = true) {
         if workspace != nil { done(nil); return }
         send("/workspaces", []) { r in
+            if r == nil, retry {                       // erster Versuch kann ins Leere gehen – einmal wiederholen
+                self.ensureWorkspace(done, retry: false)
+                return
+            }
             guard let r = r, let o = QLab.object(r), let list = o["data"] as? [[String: Any]], !list.isEmpty else {
                 done("QLab antwortet nicht. Läuft QLab mit geöffnetem Workspace „SQUIZZZzZ Live“?")
                 return
@@ -175,7 +191,10 @@ final class QLab {
                 if (o["status"] as? String) == "ok", data.hasPrefix("ok") {
                     self.workspace = id
                     self.workspaceName = pick["displayName"] as? String
-                    done(nil)
+                    // Ohne alwaysReply antwortet QLab nur auf Abfragen, nicht auf start/pause/resume/stop.
+                    self.fire("/alwaysReply", [1])
+                    self.fire("/workspace/\(id)/alwaysReply", [1])
+                    self.q.asyncAfter(deadline: .now() + 0.15) { done(nil) }
                 } else if pass.isEmpty {
                     done("QLab-Passcode fehlt. Menü „SQUIZZZzZ Pult“ → „QLab-Passcode festlegen…“.")
                 } else {
