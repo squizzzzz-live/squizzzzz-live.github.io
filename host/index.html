@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="sqz-build" content="202610232333">
+<meta name="sqz-build" content="202610232338">
 <meta name="theme-color" content="#0B106C">
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -11,8 +11,8 @@
 <link rel="apple-touch-icon" href="../icons/pult-180.png">
 <meta name="apple-mobile-web-app-title" content="SQUIZZZzZ Pult">
 <title>SQUIZZZzZ Pult</title>
-<link rel="stylesheet" href="../css/base.css?v=202610232333">
-<link rel="stylesheet" href="../css/host.css?v=202610232333">
+<link rel="stylesheet" href="../css/base.css?v=202610232338">
+<link rel="stylesheet" href="../css/host.css?v=202610232338">
 </head>
 <body>
 <div class="host-wrap">
@@ -144,20 +144,26 @@
           <button type="button" class="btn secondary small" data-add-block="film">🎬 Film</button>
           <button type="button" class="btn secondary small" data-add-block="moderation">🎤 Moderation</button>
           <button type="button" class="btn small" data-add-block="runde">🎯 Runde</button>
+          <button type="button" class="btn secondary small" data-add-block="leinwand">🖼 Leinwand</button>
           <button type="button" class="btn secondary small" data-add-block="pause">☕ Pause</button>
           <button type="button" class="btn secondary small" data-add-block="sieger">🏆 Siegerverkündung</button>
         </div>
         <p class="small" style="margin-top:12px">Reihenfolge mit ↑ ↓. „Reserve“-Blöcke überspringt WEITER – im Pult antippen, um sie einzuschieben.</p>
       </div>
       <div class="panel">
+        <h2>Standards</h2>
+        <p class="small">Gelten für alle Blöcke dieses Regieplans, wenn dort nichts anderes steht. Leer = Vorgabe.</p>
+        <div id="plan-defaults"></div>
+      </div>
+      <div class="panel">
         <h2>Vor dem Abend</h2>
-        <button type="button" id="plan-check" class="btn small">Alle Runden prüfen</button>
+        <button type="button" id="plan-check" class="btn small">Alles prüfen</button>
         <p id="plan-check-msg" class="small" style="margin-top:10px"></p>
         <div class="row">
           <button type="button" id="plan-export" class="btn secondary small">Als Datei sichern</button>
           <label class="btn secondary small" style="margin-top:0">Aus Datei laden …<input type="file" id="plan-import" accept=".json,application/json" class="hidden"></label>
         </div>
-        <p class="small" style="margin-top:12px">QLab-Cues hängen sich ab Ausbaustufe P3 automatisch an (je Runde eine Gruppe).</p>
+        <p class="small" style="margin-top:12px">„QLab befüllen“ kommt als Nächstes: Das Pult baut dann aus diesem Plan den Workspace „SQUIZZZzZ Live“.</p>
       </div>
     </div>
   </section>
@@ -283,7 +289,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="../js/host-app.js?v=202610232333"></script>
-<script type="module" src="../js/update.js?v=202610232333"></script>
+<script type="module" src="../js/host-app.js?v=202610232338"></script>
+<script type="module" src="../js/update.js?v=202610232338"></script>
 </body>
 </html>
