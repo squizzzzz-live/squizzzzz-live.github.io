@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#0B106C">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ Pult – Mac-Test</title>
-<link rel="stylesheet" href="../css/base.css?v=202610232300">
-<link rel="stylesheet" href="../css/host.css?v=202610232300">
+<link rel="stylesheet" href="../css/base.css?v=202610232333">
+<link rel="stylesheet" href="../css/host.css?v=202610232333">
 <style>
   .mt { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
   .mt section { background: rgba(6,9,69,.55); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-top: 18px; }
@@ -65,13 +65,23 @@
   </section>
 
   <section>
+    <h2>4 · QLab-Schreibtest</h2>
+    <p class="small">Legt in QLab eine Testgruppe „ZZ Schreibtest“ an (Nummer T) mit Film → automatisch weiter → Standbild, und liest alles zurück. „Testgruppe löschen“ räumt wieder auf.</p>
+    <div class="row">
+      <button class="btn small" id="qw-run" type="button">Schreibtest starten</button>
+      <button class="btn small secondary" id="qw-del" type="button">Testgruppe löschen</button>
+    </div>
+    <pre id="qw-out" class="hidden"></pre>
+  </section>
+
+  <section>
     <h2>3 · Ton ohne Klick</h2>
     <p id="snd">Teste …</p>
   </section>
 </div>
 
 <script type="module">
-import { parseSpeedquizzing } from "../js/sqq.js?v=202610232300";
+import { parseSpeedquizzing } from "../js/sqq.js?v=202610232333";
 
 const $ = (id) => document.getElementById(id);
 const bridge = window.webkit?.messageHandlers?.sqz;
@@ -156,6 +166,44 @@ async function sendOsc(address) {
 $("osc-send").addEventListener("click", () => sendOsc($("osc-addr").value.trim()));
 $("osc-addr").addEventListener("keydown", (e) => { if (e.key === "Enter") sendOsc($("osc-addr").value.trim()); });
 $("quick").addEventListener("click", (e) => { const b = e.target.closest("[data-osc]"); if (b) sendOsc(b.dataset.osc); });
+
+// ---------- QLab-Schreibtest ----------
+async function q(address, args = []) { return JSON.parse(await mac("qlab", { address, args })); }
+const TEST_FILM = "01 Trailer/12 Intermezzo/Sparkling Blue Background.mp4";
+const TEST_STILL = "01 Trailer/12 Intermezzo/Standbild Sparkling Background.jpg";
+$("qw-run").addEventListener("click", async () => {
+  const out = [], log = (t) => { out.push(t); show($("qw-out"), out.join("\n")); };
+  try {
+    const info = await mac("info");
+    const g = await q("/new", ["group"]); log("Gruppe anlegen → " + g.status + " " + JSON.stringify(g.data));
+    const gid = g.data; if (!gid) throw new Error("QLab hat keine Cue-ID zurückgegeben.");
+    await q(`/cue_id/${gid}/number`, ["T"]); await q(`/cue_id/${gid}/name`, ["ZZ Schreibtest"]);
+    const v = await q("/new", ["video"]); const vid = v.data; log("Video-Cue (Film) → " + v.status + " " + vid);
+    log("  Datei → " + (await q(`/cue_id/${vid}/fileTarget`, [info.root + "/" + TEST_FILM])).status);
+    await q(`/cue_id/${vid}/number`, ["T.1"]); await q(`/cue_id/${vid}/name`, ["Test Film"]);
+    log("  automatisch weiter (2) → " + (await q(`/cue_id/${vid}/continueMode`, [2])).status);
+    const st = await q("/new", ["video"]); const sid = st.data; log("Video-Cue (Standbild) → " + st.status + " " + sid);
+    log("  Datei → " + (await q(`/cue_id/${sid}/fileTarget`, [info.root + "/" + TEST_STILL])).status);
+    await q(`/cue_id/${sid}/number`, ["T.2"]); await q(`/cue_id/${sid}/name`, ["Test Standbild"]);
+    log("In Gruppe schieben → " + (await q(`/move/${vid}`, [0, gid])).status + " / " + (await q(`/move/${sid}`, [1, gid])).status);
+    log("");
+    for (const [label, id] of [["Gruppe", gid], ["Film", vid], ["Standbild", sid]]) {
+      const get = async (k) => { try { const r = await q(`/cue_id/${id}/${k}`); return r.status === "ok" ? JSON.stringify(r.data) : r.status; } catch (e) { return "?"; } };
+      log(`${label}: Nummer ${await get("number")} · Name ${await get("name")} · Eltern ${await get("parent")} · Folge ${await get("continueMode")} · Dauer ${await get("duration")} · kaputt ${await get("isBroken")}`);
+    }
+    log("\n✓ Fertig – in QLab sollte jetzt die Gruppe „T · ZZ Schreibtest“ stehen.");
+  } catch (e) { log("✗ " + (e.message || e)); }
+  refreshLog();
+});
+$("qw-del").addEventListener("click", async () => {
+  const out = [], log = (t) => { out.push(t); show($("qw-out"), out.join("\n")); };
+  try {
+    const r = await q("/cue/T/uniqueID"); log("Testgruppe → " + r.status + " " + JSON.stringify(r.data));
+    if (r.status !== "ok" || !r.data) throw new Error("Keine Testgruppe mit Nummer T gefunden.");
+    const d = await q(`/delete_id/${r.data}`); log("Löschen → " + d.status);
+  } catch (e) { log("✗ " + (e.message || e)); }
+  refreshLog();
+});
 
 async function soundTest() {
   try {
