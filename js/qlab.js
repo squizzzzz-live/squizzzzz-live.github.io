@@ -1,6 +1,6 @@
 // QLab aus dem Regieplan befüllen. Läuft nur in der Mac-App „SQUIZZZzZ Pult“ (OSC über die Brücke).
 // Nummern: Gruppe = Blocknummer n · n.0 Erklärfilm · n.L1/n.L2 Leinwand (Film → Standbild) · n.1 … Clips · n.x.1 Auflösung
-import { mac, listDir } from "./mac.js?v=202610240032";
+import { mac, listDir } from "./mac.js?v=202610240044";
 
 const AUDIO = /\.(mp3|wav|aiff?|m4a|aac)$/i;
 const VIDEO = /\.(mp4|mov|m4v)$/i;
@@ -78,15 +78,22 @@ export async function fill(spec, progress = () => {}, opts = {}) {
   if (await q("/showMode").catch(() => false)) throw new Error("QLab steht auf „Show“. Bitte unten links in QLab auf „Edit“ stellen und nochmal befüllen.");
   let lists = await q("/cueLists");
   const main = lists[0]; if (!main) throw new Error("QLab meldet keine Cue-Liste.");
-  // 1. Alte Cues löschen
+  // 1. Alte Cues erst NACH dem Anlegen löschen: In einer leeren Liste legt QLab per OSC keine neuen Cues an
+  //    (neue Cues kommen hinter den ausgewählten). Alte Nummern vorher leeren, damit keine doppelten entstehen.
   const old = main.cues || [];
-  for (let i = 0; i < old.length; i++) { progress(`Leere QLab … ${i + 1}/${old.length}`); await q(`/delete_id/${old[i].uniqueID}`); }
-  lists = await q("/cueLists");
-  if ((lists[0]?.cues || []).length) throw new Error("QLab hat nicht alle alten Cues gelöscht. Bitte in QLab alles markieren, löschen und nochmal befüllen.");
+  const flat = []; const walk = (arr) => arr.forEach((c) => { flat.push(c.uniqueID); if (c.cues) walk(c.cues); }); walk(old);
+  for (let i = 0; i < flat.length; i++) { progress(`Bereite QLab vor … ${i + 1}/${flat.length}`); await q(`/cue_id/${flat[i]}/number`, [""]); }
+  if (old.length) await q(`/select_id/${old[old.length - 1].uniqueID}`).catch(() => {});
+  else await q(`/select_id/${main.uniqueID}`).catch(() => {});
   // 2. Neu anlegen
   const total = countCues(spec); let done = 0;
   async function make(c, parentId, index) {
-    const id = await q("/new", [c.type]);
+    let id;
+    try { id = await q("/new", [c.type]); }
+    catch (e) {
+      if (!old.length && done === 0) throw new Error("In eine ganz leere QLab-Liste kann das Pult keine Cues einfügen. Bitte in QLab einmal irgendeinen Cue anlegen (egal welchen) und nochmal befüllen – den räumt das Pult dann selbst weg.");
+      throw e;
+    }
     if (!id) throw new Error("QLab hat beim Anlegen keine Cue-ID geliefert.");
     if (c.file) await q(`/cue_id/${id}/fileTarget`, [abs(c.file)]);
     await q(`/cue_id/${id}/number`, [c.number]);
@@ -99,6 +106,11 @@ export async function fill(spec, progress = () => {}, opts = {}) {
     return id;
   }
   for (let i = 0; i < spec.length; i++) await make(spec[i], main.uniqueID, i);
+  // Jetzt die alten Cues entfernen
+  for (let i = 0; i < old.length; i++) { progress(`Räume alte Cues weg … ${i + 1}/${old.length}`); await q(`/delete_id/${old[i].uniqueID}`); }
+  lists = await q("/cueLists");
+  const left = (lists[0]?.cues || []).filter((c) => old.some((o) => o.uniqueID === c.uniqueID));
+  if (left.length) throw new Error(`QLab hat ${left.length} alte Cues nicht gelöscht. Die neuen sind trotzdem angelegt – die alten (ohne Nummer) bitte in QLab von Hand löschen.`);
   // 3. Prüfen: Folgemodus angekommen? Cues spielbar?
   progress("Prüfe …");
   const broken = [], contLost = [];

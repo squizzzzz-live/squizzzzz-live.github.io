@@ -1,5 +1,5 @@
 // Bewertung einer Antwort – identisch auf Host (Punkte) und Handy (richtig/falsch-Anzeige).
-import { toNumber } from "./sqq.js?v=202610240032";
+import { toNumber } from "./sqq.js?v=202610240044";
 
 export function isCorrect(type, key, value) {
   if (value === null || value === undefined || key === null || key === undefined) return false;
