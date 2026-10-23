@@ -16,4 +16,4 @@ Gemeinsame Bausteine: `css/base.css` (Farben, Schrift), `js/ribbons.js` (bewegte
 
 **Wichtig:** Dieses Repository ist öffentlich. Es enthält nur App-Code – niemals Fragen, Lösungen, Fragemedien, Spielerdaten oder Zugangsdaten.
 
-Projektplan und Entwicklungsprotokoll liegen im SQUIZZZzZ-Produktionsordner („05 App“).
+Projektplan und Entwicklungsprotokoll liegen im SQUIZZZzZ-Produktionsordner („05 App/00 Projekt“). Eine Kopie dieses Repositorys liegt nach jedem Deploy in „05 App/30 App-Kopie“ (nur zum Ansehen – Änderungen dort gehen nicht live).
