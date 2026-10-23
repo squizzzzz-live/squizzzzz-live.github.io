@@ -75,7 +75,7 @@
 .opts li { padding: 8px 12px; border-radius: 10px; background: var(--card); overflow-wrap: anywhere; }
 .opts li.ok { background: rgba(0,178,92,.25); outline: 1px solid var(--green); }
 .solution { margin-top: 12px; color: #7CF0B5; font-weight: 700; overflow-wrap: anywhere; }
-.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.controls { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin-top: 16px; }
 .controls .btn { margin-top: 0; }
 .controls .btn:disabled { opacity: .35; cursor: default; }
 .settings { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin-top: 14px; color: var(--muted); }
@@ -131,3 +131,9 @@
 .otf-start { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
 .otf-start .btn { margin-top: 10px; }
 .need-key { color: #FFC46B !important; font-weight: 700; }
+
+.c-nav, .c-act, .c-aux { display: flex; gap: 8px; align-items: center; }
+.c-act { justify-content: center; flex-wrap: wrap; }
+.c-nav .btn { min-width: 104px; }
+.c-act .btn { padding: 12px 26px; font-size: 1rem; }
+.controls .btn.off { display: none; }

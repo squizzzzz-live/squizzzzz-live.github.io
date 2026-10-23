@@ -1,9 +1,9 @@
 // Host: Runde laden, Fragen steuern, auflösen, Punkte führen (Keypad).
-import { db } from "./fb.js?v=202610230921";
-import { parseSpeedquizzing, toNumber } from "./sqq.js?v=202610230921";
-import { scoreQuestion } from "./scoring.js?v=202610230921";
-import { playBuzzer } from "./buzzer.js?v=202610230921";
-import { shrink } from "./images.js?v=202610230921";
+import { db } from "./fb.js?v=202610231754";
+import { parseSpeedquizzing, toNumber } from "./sqq.js?v=202610231754";
+import { scoreQuestion } from "./scoring.js?v=202610231754";
+import { playBuzzer } from "./buzzer.js?v=202610231754";
+import { shrink } from "./images.js?v=202610231754";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -340,17 +340,17 @@ export function initRound(ctx) {
     if (isBuzz) $("r-pos").textContent = `Frage ${idx + 1} von ${round.questions.length} · Buzzin`;
     const label = { ready: "Titelbild", open: "Antworten laufen", closed: "Geschlossen", reveal: "Aufgelöst", buzz: "Buzzer offen", buzzed: "Jemand ist dran", lobby: "–" }[st] || st;
     $("r-state").textContent = label;
-    $("q-open").disabled = st !== "ready";
-    $("q-close").disabled = st !== "open";
-    $("q-reveal").disabled = !(st === "open" || st === "closed");
+    const vis = (id, on) => $(id).classList.toggle("off", !on);
+    vis("q-open", st === "ready"); vis("q-close", st === "open"); vis("q-reveal", st === "open" || st === "closed");
+    $("c-hint").textContent = q.type !== "buzz" && st === "reveal" ? (idx < round.questions.length - 1 ? "Leertaste = weiter" : "Letzte Frage") : "";
     $("q-next").disabled = idx >= round.questions.length - 1;
     $("q-prev").disabled = idx === 0;
     $("q-title").disabled = st === "ready";
 
     if (isBuzz) {
-      $("b-open").disabled = st !== "ready";
-      $("b-right").disabled = st !== "buzzed"; $("b-wrong").disabled = st !== "buzzed";
-      $("b-reveal").disabled = !(st === "buzz" || st === "buzzed");
+      vis("b-open", st === "ready"); vis("b-right", st === "buzzed"); vis("b-wrong", st === "buzzed");
+      vis("b-reveal", st === "buzz" || st === "buzzed");
+      $("c-hint").textContent = st === "reveal" ? (idx < round.questions.length - 1 ? "Leertaste = weiter" : "Letzte Frage") : st === "buzz" ? "Warte auf den ersten Buzz …" : "";
       $("q-next").disabled = idx >= round.questions.length - 1;
       $("q-prev").disabled = idx === 0;
       $("q-title").disabled = st === "ready";

@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610230921">
-<link rel="stylesheet" href="../css/host.css?v=202610230921">
+<link rel="stylesheet" href="../css/base.css?v=202610231754">
+<link rel="stylesheet" href="../css/host.css?v=202610231754">
 </head>
 <body>
 <div class="host-wrap">
@@ -184,16 +184,23 @@
           <img id="r-pic" class="qpic hidden" alt="">
         </div>
         <div class="controls">
-          <button id="q-prev" class="btn secondary small" title="Vorherige Frage (←)">‹</button>
-          <button id="q-title" class="btn secondary small" title="Titelbild auf den Handys zeigen">Titelbild</button>
-          <button id="q-open" class="btn small bz-hide">Frage zeigen</button>
-          <button id="q-close" class="btn secondary small bz-hide">Schließen</button>
-          <button id="q-reveal" class="btn small bz-hide">Auflösen</button>
-          <button id="b-open" class="btn small kp-hide" title="Leertaste">Buzzer freigeben</button>
-          <button id="b-right" class="btn small ok-btn kp-hide" title="Taste R">✓ Richtig</button>
-          <button id="b-wrong" class="btn small bad-btn kp-hide" title="Taste F">✗ Falsch</button>
-          <button id="b-reveal" class="btn secondary small kp-hide">Auflösen</button>
-          <button id="q-next" class="btn secondary small" title="Nächste Frage (→)">Nächste ›</button>
+          <div class="c-nav">
+            <button id="q-prev" class="btn secondary small" title="Vorherige Frage (←)">‹ Zurück</button>
+            <button id="q-next" class="btn secondary small" title="Nächste Frage (→)">Weiter ›</button>
+          </div>
+          <div class="c-act">
+            <button id="q-open" class="btn small bz-hide" title="Leertaste">Frage zeigen</button>
+            <button id="q-close" class="btn secondary small bz-hide" title="Leertaste">Antworten schließen</button>
+            <button id="q-reveal" class="btn small bz-hide" title="Leertaste">Auflösen</button>
+            <button id="b-open" class="btn small kp-hide" title="Leertaste">Buzzer freigeben</button>
+            <button id="b-right" class="btn small ok-btn kp-hide" title="Taste R">✓ Richtig</button>
+            <button id="b-wrong" class="btn small bad-btn kp-hide" title="Taste F">✗ Falsch</button>
+            <button id="b-reveal" class="btn secondary small kp-hide">Auflösen</button>
+            <span id="c-hint" class="small"></span>
+          </div>
+          <div class="c-aux">
+            <button id="q-title" class="btn secondary small" title="Titelbild auf den Handys zeigen">Titelbild</button>
+          </div>
         </div>
         <div class="settings">
           <label class="bz-hide">Zeit <input id="duration" type="number" min="5" max="120" value="20"> s</label>
@@ -223,6 +230,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="../js/host-app.js?v=202610230921"></script>
+<script type="module" src="../js/host-app.js?v=202610231754"></script>
 </body>
 </html>
