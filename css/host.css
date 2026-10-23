@@ -203,3 +203,5 @@
 .qlab-box { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .qlab-box .btn { margin: 0; }
 .ok-note { color: #7CF0B5; } .bad-note { color: #FFB3B3; }
+.patch-in { width: 56px; margin-left: 6px; padding: 6px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0,0,0,.2); color: var(--text); font: inherit; text-align: center; }
+.def-row .btn { margin: 0; }

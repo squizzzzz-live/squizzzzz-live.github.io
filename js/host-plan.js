@@ -1,11 +1,11 @@
 // Regieplan: den Abend vorbereiten (Reiter „Regieplan“) und im Pult Schritt für Schritt abarbeiten (Leiste im Reiter „Spiel“).
 // Ein Block ist Film, Moderation, Runde, Pause oder Siegerverkündung. Runden zeigen auf eine Datei im Ordner SQUIZZZzZ,
 // die das Pult (Mac-App) erst beim Start der Runde liest. QLab kommt in P3 dazu.
-import { db } from "./fb.js?v=202610240008";
-import { parseSpeedquizzing } from "./sqq.js?v=202610240008";
-import { shrink } from "./images.js?v=202610240008";
-import { buildSpec, fill, countCues } from "./qlab.js?v=202610240008";
-import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610240008";
+import { db } from "./fb.js?v=202610240032";
+import { parseSpeedquizzing } from "./sqq.js?v=202610240032";
+import { shrink } from "./images.js?v=202610240032";
+import { buildSpec, fill, countCues, setAudioPatch } from "./qlab.js?v=202610240032";
+import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610240032";
 import { ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const $ = (id) => document.getElementById(id);
@@ -228,7 +228,7 @@ export function initPlan(ctx) {
       const n = countCues(spec);
       if (!n) throw new Error("Im Regieplan steht noch nichts, was QLab abspielen könnte.");
       if (!confirm(`Der QLab-Workspace „SQUIZZZzZ Live“ wird geleert und aus dem Regieplan neu aufgebaut: ${n} Cues.${warn.length ? "\n\nHinweise:\n• " + warn.join("\n• ") : ""}\n\nFortfahren?`)) { msg.textContent = ""; return; }
-      const r = await fill(spec, (t) => (msg.textContent = t));
+      const r = await fill(spec, (t) => (msg.textContent = t), { audioPatch: defaults.audioPatch || 1 });
       await update(ref(db, P()), { qlab: { at: Date.now(), sig: planSig(), cues: r.total } });
       const lines = [`✓ ${r.total} Cues in QLab angelegt.`];
       if (r.contLost.length) lines.push(`⚠ „automatisch weiter“ fehlt bei ${r.contLost.join(", ")} – Mac-App aktuell (0.1.4)?`);
@@ -287,10 +287,25 @@ export function initPlan(ctx) {
     const box = $("plan-defaults"); if (!box || box.contains(document.activeElement)) return;
     box.innerHTML = Object.keys(BUILTIN).map((k) => `<div class="pb-row def-row"><span class="pb-lbl">${DEFAULT_LABEL[k]}</span>
       <input class="pb-path" data-dk="${k}" value="${esc(defaults[k] || "")}" placeholder="${esc(fileName(BUILTIN[k]))}" title="${esc(defaults[k] || BUILTIN[k])}" spellcheck="false">
-      <button type="button" class="ic" data-dbrowse="${k}" title="Durchsuchen" ${isMac() ? "" : "disabled"}>…</button></div>`).join("");
+      <button type="button" class="ic" data-dbrowse="${k}" title="Durchsuchen" ${isMac() ? "" : "disabled"}>…</button></div>`).join("")
+      + `<div class="pb-row def-row"><span class="pb-lbl">Tonausgang</span>
+      <label class="small">Patch <input type="number" min="1" max="16" class="patch-in" data-dk="audioPatch" value="${esc(defaults.audioPatch || "")}" placeholder="1"></label>
+      <button type="button" class="btn secondary small" id="patch-apply" ${isMac() ? "" : "disabled"}>Auf alle Cues anwenden</button></div>
+      <p class="small" style="margin:4px 0 0">Nummer = Reihenfolge in QLab unter Workspace-Einstellungen → Audio Outputs (1 = oberster Patch). Gilt beim Befüllen für alle Ton- und Film-Cues.</p>
+      <p class="small" id="patch-msg"></p>`;
   }
   const defBox = $("plan-defaults");
-  defBox.addEventListener("change", (e) => { const k = e.target.dataset.dk; if (!k) return; const v = relPath(e.target.value); update(ref(db, P()), { [`defaults/${k}`]: v || null }); });
+  defBox.addEventListener("change", (e) => {
+    const k = e.target.dataset.dk; if (!k) return;
+    const v = k === "audioPatch" ? (parseInt(e.target.value, 10) || null) : (relPath(e.target.value) || null);
+    update(ref(db, P()), { [`defaults/${k}`]: v });
+  });
+  defBox.addEventListener("click", async (e) => {
+    if (!e.target.closest("#patch-apply")) return;
+    const p = parseInt(defaults.audioPatch, 10) || 1, msg = $("patch-msg");
+    try { msg.textContent = "Stelle um …"; await setAudioPatch(p); msg.textContent = `✓ Alle Cues spielen jetzt über Patch ${p}.`; msg.className = "small ok-note"; }
+    catch (ex) { msg.textContent = "✗ " + (ex.message || ex); msg.className = "small bad-note"; }
+  });
   defBox.addEventListener("click", (e) => {
     const k = e.target.closest("[data-dbrowse]")?.dataset.dbrowse; if (!k) return;
     browse(eff(k), k === "saverStill" ? FILTERS.image : FILTERS.media, DEFAULT_LABEL[k] + " wählen", (path) => update(ref(db, P()), { [`defaults/${k}`]: path }));

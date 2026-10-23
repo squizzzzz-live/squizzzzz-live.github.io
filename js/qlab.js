@@ -1,6 +1,6 @@
 // QLab aus dem Regieplan befüllen. Läuft nur in der Mac-App „SQUIZZZzZ Pult“ (OSC über die Brücke).
 // Nummern: Gruppe = Blocknummer n · n.0 Erklärfilm · n.L1/n.L2 Leinwand (Film → Standbild) · n.1 … Clips · n.x.1 Auflösung
-import { mac, listDir } from "./mac.js?v=202610240008";
+import { mac, listDir } from "./mac.js?v=202610240032";
 
 const AUDIO = /\.(mp3|wav|aiff?|m4a|aac)$/i;
 const VIDEO = /\.(mp4|mov|m4v)$/i;
@@ -71,7 +71,8 @@ export async function buildSpec(blocks, eff, titleOf, countQuestions) {
 export const countCues = (spec) => spec.reduce((s, c) => s + 1 + (c.children ? c.children.length : 0), 0);
 
 /** Workspace leeren und die Cues anlegen. progress(text) wird laufend aufgerufen. */
-export async function fill(spec, progress = () => {}) {
+export async function fill(spec, progress = () => {}, opts = {}) {
+  const patch = parseInt(opts.audioPatch, 10) || 0;
   const info = await mac("info");
   const abs = (rel) => info.root + "/" + rel;
   if (await q("/showMode").catch(() => false)) throw new Error("QLab steht auf „Show“. Bitte unten links in QLab auf „Edit“ stellen und nochmal befüllen.");
@@ -91,6 +92,7 @@ export async function fill(spec, progress = () => {}) {
     await q(`/cue_id/${id}/number`, [c.number]);
     await q(`/cue_id/${id}/name`, [c.name]);
     if (c.cont) await q(`/cue_id/${id}/continueMode`, [c.cont]);
+    if (patch && c.type !== "group") await q(`/cue_id/${id}/audioOutputPatchNumber`, [patch]);
     await q(`/move/${id}`, [index, parentId]);
     done++; progress(`Lege Cues an … ${done}/${total}`);
     if (c.children) for (let k = 0; k < c.children.length; k++) await make(c.children[k], id, k);
@@ -108,4 +110,9 @@ export async function fill(spec, progress = () => {}) {
   }
   for (const c of spec) await verify(c);
   return { total, broken, contLost };
+}
+
+/** Alle Cues auf einen Tonausgang (Patch-Nummer in QLab) umstellen – für den Techniktest. */
+export async function setAudioPatch(patch) {
+  await q("/cue/*/audioOutputPatchNumber", [parseInt(patch, 10)]);
 }

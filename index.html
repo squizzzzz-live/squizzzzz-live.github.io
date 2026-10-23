@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="sqz-build" content="202610240008">
+<meta name="sqz-build" content="202610240032">
 <meta name="theme-color" content="#0B106C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -77,7 +77,7 @@
   .big-check.bad { background: #E5484D; color: #fff; box-shadow: 0 0 40px rgba(229,72,77,.5); }
   .big-check.none { background: rgba(255,255,255,.15); color: var(--text); box-shadow: none; }
 </style>
-<link rel="stylesheet" href="css/base.css?v=202610240008">
+<link rel="stylesheet" href="css/base.css?v=202610240032">
 </head>
 <body>
 <main class="wrap">
@@ -174,9 +174,9 @@
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610240008";
-  import { auth, db } from "./js/fb.js?v=202610240008";
-  import { isCorrect } from "./js/scoring.js?v=202610240008";
+  import { startRibbons } from "./js/ribbons.js?v=202610240032";
+  import { auth, db } from "./js/fb.js?v=202610240032";
+  import { isCorrect } from "./js/scoring.js?v=202610240032";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -585,6 +585,6 @@
     if (!document.hidden && game && !loaded) { goOffline(db); goOnline(db); joinGame(game); }
   });
 </script>
-<script type="module" src="js/update.js?v=202610240008"></script>
+<script type="module" src="js/update.js?v=202610240032"></script>
 </body>
 </html>
