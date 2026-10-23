@@ -1,10 +1,10 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610222334";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610222334";
-import { initRound } from "./host-round.js?v=202610222334";
-import { initLobby } from "./host-lobby.js?v=202610222334";
-import { buzzerList, matchBuzzer, playBuzzer } from "./buzzer.js?v=202610222334";
-import { shrink } from "./images.js?v=202610222334";
+import { startRibbons } from "./ribbons.js?v=202610230859";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610230859";
+import { initRound } from "./host-round.js?v=202610230859";
+import { initLobby } from "./host-lobby.js?v=202610230859";
+import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610230859";
+import { shrink } from "./images.js?v=202610230859";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
@@ -69,7 +69,7 @@ $("create").addEventListener("click", async () => {
       code = wish;
     } else { do { code = newCode(); } while ((await get(ref(db, `games/${code}/public`))).exists()); }
     await set(ref(db, `games/${code}`), { public: { state: "lobby", title: $("new-title").value.trim() || "SQUIZZZzZ", allowGuests: true, createdAt: serverTimestamp() } });
-    store.set(code); location.hash = "#spieler"; openGame(code);
+    store.set(code); location.hash = "#rezeption"; openGame(code);
   } catch (e) { err(e.code ? "Spiel konnte nicht angelegt werden: " + e.code : e.message); }
   finally { btn.disabled = false; btn.textContent = "Spiel anlegen"; }
 });
@@ -80,6 +80,7 @@ function openGame(code) {
   unsub.forEach((u) => u()); unsub = [];
   $("tabs").classList.remove("hidden");
   $("game-badge").textContent = code; $("game-badge").classList.remove("hidden");
+  $("sound-chip").classList.remove("hidden");
   $("code").textContent = code;
   const qr = qrcode(0, "M"); qr.addData(APP_URL + "?g=" + code); qr.make();
   $("qr").innerHTML = qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true });
@@ -114,7 +115,7 @@ async function repairIndex() {
 const tab = () => (location.hash || "#rezeption").slice(1);
 function route() {
   if (!game) return;
-  const t = ["spieler", "rezeption", "warteseite", "spiel"].includes(tab()) ? tab() : "rezeption";
+  const t = ["rezeption", "spieler", "warteseite", "spiel"].includes(tab()) ? tab() : "rezeption";
   document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === t));
   show("v-" + t); renderAll();
 }
@@ -184,7 +185,7 @@ function renderPlayers() {
     bz.value = p.buzzer || "";
     bz.addEventListener("change", () => set(ref(db, `${G()}/roster/${pid}/buzzer`), bz.value || null));
     const play = document.createElement("button"); play.className = "btn secondary small"; play.textContent = "▶"; play.title = "Probehören";
-    play.style.marginLeft = "6px"; play.onclick = () => playBuzzer(buzzerFor(p), p.name);
+    play.style.marginLeft = "6px"; play.onclick = () => { unlockAudio(); playBuzzer(buzzerFor(p), p.name); };
     tr.children[3].append(bz, play);
     tr.children[4].textContent = uid ? (online ? "online" : "angemeldet, offline") : "noch nicht da";
     const acts = tr.children[5];
@@ -284,3 +285,18 @@ function renderBoard() {
     if (!rows.length) box.innerHTML = `<li class="small" style="display:block">Noch keine Gruppen – auf der Seite „Spieler“ anlegen.</li>`;
   }
 }
+
+// ---------- Ton ----------
+async function soundOn() {
+  const ok = await unlockAudio();
+  if (ok) playBuzzer(null, "Ton ist an");
+}
+$("sound-btn").addEventListener("click", soundOn);
+$("sound-chip").addEventListener("click", soundOn);
+onAudioChange((on) => {
+  $("sound-chip").textContent = on ? "🔊 Ton an" : "🔈 Ton aus";
+  $("sound-chip").classList.toggle("on", on); $("sound-chip").classList.toggle("off", !on);
+  $("sound-panel").classList.toggle("on", on);
+  $("sound-state").textContent = on ? "✓ Ton ist aktiv" : "Ton ist noch aus";
+  $("sound-btn").textContent = on ? "🔊 Ton testen" : "🔊 Ton an";
+});

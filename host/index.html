@@ -7,20 +7,20 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <title>SQUIZZZzZ – Host</title>
-<link rel="stylesheet" href="../css/base.css?v=202610222334">
-<link rel="stylesheet" href="../css/host.css?v=202610222334">
+<link rel="stylesheet" href="../css/base.css?v=202610230859">
+<link rel="stylesheet" href="../css/host.css?v=202610230859">
 </head>
 <body>
 <div class="host-wrap">
   <header class="host-head">
     <div><div class="kicker">Host</div><h1>SQUIZZZzZ</h1></div>
     <nav class="tabs hidden" id="tabs">
-      <a href="#spieler" data-tab="spieler">Spieler</a>
       <a href="#rezeption" data-tab="rezeption">Rezeption</a>
+      <a href="#spieler" data-tab="spieler">Spieler</a>
       <a href="#warteseite" data-tab="warteseite">Warteseite</a>
       <a href="#spiel" data-tab="spiel">Spiel</a>
     </nav>
-    <div class="who"><span id="game-badge" class="badge hidden"></span><span id="who" class="hidden"></span></div>
+    <div class="who"><button id="sound-chip" class="sound-chip off hidden" title="Ton für Buzzernamen">🔈 Ton aus</button><span id="game-badge" class="badge hidden"></span><span id="who" class="hidden"></span></div>
   </header>
 
   <!-- Nicht angemeldet / kein Host -->
@@ -76,6 +76,13 @@
         <button id="qr-svg" class="btn secondary small">QR als SVG</button>
       </div>
     </div>
+    <div style="display:grid;gap:24px;align-content:start">
+    <div class="panel sound-panel" id="sound-panel">
+      <h2>Ton für den Abend</h2>
+      <p class="small">Safari und Chrome spielen Buzzernamen erst ab, wenn Du einmal Ton freigegeben hast. Einmal pro Abend klicken – danach klingt jeder Buzz sofort.</p>
+      <button id="sound-btn" class="btn">🔊 Ton an</button>
+      <span id="sound-state" class="small" style="margin-left:12px"></span>
+    </div>
     <div class="panel">
       <h2>Einwahl</h2>
       <div class="counts">
@@ -87,6 +94,7 @@
       <ul class="plist" id="rec-list"></ul>
       <p class="small" style="margin-top:16px">Tipp fürs iPhone: Über „Teilen → Zum Home-Bildschirm“ läuft die App ohne Adressleiste im Vollbild.</p>
       <div class="row"><button id="end" class="btn danger small">Spiel beenden &amp; löschen</button></div>
+    </div>
     </div>
   </section>
 
@@ -193,6 +201,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="../js/host-app.js?v=202610222334"></script>
+<script type="module" src="../js/host-app.js?v=202610230859"></script>
 </body>
 </html>
