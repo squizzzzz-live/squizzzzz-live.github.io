@@ -12,3 +12,6 @@ database-debug.log
 # Quizinhalte gehören NICHT in dieses öffentliche Repository
 content/
 mac/build/
+tests/e2e/.work/
+tests/e2e/rounds/
+tests/e2e/shots/
