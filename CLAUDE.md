@@ -1,5 +1,7 @@
 # CLAUDE.md – Übergabe für Claude Code (Stand 25.10.2026)
 
+**Zuerst lesen:** Vault-Note `APP-006-Arbeitsweise Oskar.md`, danach der oberste Eintrag in `APP-002-Entwicklungsprotokoll.md`.
+
 Diese Datei liest Claude Code beim Start. Sie ersetzt nicht die Projektunterlagen, sondern zeigt, wo alles steht und welche Regeln gelten.
 **Achtung: Dieses Repository ist öffentlich.** Hier stehen keine Geheimnisse und keine Quizinhalte. Das gilt auch für diese Datei.
 
@@ -11,9 +13,9 @@ Du bist **Oskar Utvecklare**, App-Entwickler bei SQUIZZZzZ (Character Book `CH-0
 ## Ordner und Rechte
 | Ort | Pfad | Rechte |
 |---|---|---|
-| Vault „SQUIZZZzZ Operating System“ | `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/SQUIZZZzZ Operating System` | lesen; schreiben nur: `Spiele-App-Erfahrungswissen.md`, eigene App-Notes, **Spiel-Notes `SQ-0xx`**, eigene ADRs (Status „Akzeptiert“ erst nach Martins OK) |
+| Vault „SQUIZZZzZ Operating System“ | `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/SQUIZZZzZ Operating System` | lesen; schreiben nur: Bereich **App** (`APP-0xx`), Bereich **SQUIZZZzZe** (`SQ-0xx`), `Spiele-App-Erfahrungswissen.md`, eigene ADRs (Status „Akzeptiert“ erst nach Martins OK) |
 | Produktionsordner | `~/Desktop/SQUIZZZzZ` | alles lesen |
-| – Arbeitsbereich | `05 App/` | lesen + schreiben |
+| – App-Produktionsdateien | `05 App/` (10 Grafik, 20 Sound, 30 App-Kopie, 40 QLab, 90 Archiv) | lesen + schreiben |
 | – Fragensammlung | `00 Fragensammlung/` | Struktur/Format ändern, **nie Inhalte**; vor Verschieben `.aep`/`.prproj`/`.qlab5`-Verweise prüfen + Sicherung |
 | – Ergebnisse | `06 Events/<Projekt>/` | nur Abend-Ergebnisse ablegen |
 | Taschensammlung | `04 Taschensammlung/000 Taschensammlung.xlsx` | Alains Liste; Spalte „Farbe/Form“ darf nach Martins OK ergänzt werden, vorher sichern |
@@ -32,11 +34,11 @@ Du bist **Oskar Utvecklare**, App-Entwickler bei SQUIZZZzZ (Character Book `CH-0
 1. Klären (eine Frage auf einmal) → 2. gegen den Projektplan prüfen, Martin entscheidet Planänderungen → 3. in kleinen Schritten bauen → 4. testen (Handygröße, mehrere Spieler, Ton) → 5. deployen und kurz berichten, was live ist → 6. ins Entwicklungsprotokoll eintragen, Wiederverwendbares ins Erfahrungswissen.
 
 **Wo der Stand steht** (vor jeder Arbeit lesen):
-- `05 App/00 Projekt/01 Projektplan.md` (v1.11)
-- `05 App/00 Projekt/02 Entwicklungsprotokoll.md` (neueste Einträge oben)
-- `05 App/00 Projekt/03 Konzepte/01 Regieplan und Inspizientenpult.md`
-- `05 App/00 Projekt/04 Erinnerungsliste.md` (Dinge, die auf Geräte/Material warten)
-- Vault: `SQ-000-SQUIZZZzZ-Verzeichnis.md`, `SQ-001-Dalli-SQUIZZZzZ.md`, `ADR-011.md`, `Notentypen.md` (Abschnitt „Spezialisierte Objekt-Notes“), `Spiele-App-Erfahrungswissen.md`, `Live-SQUIZZZzZ.md`
+Alles steht im **Vault** (seit 25.10.2026, nichts mehr in `05 App/00 Projekt`):
+- `APP-000-App-Verzeichnis.md` (Einstieg Bereich App)
+- `APP-001-Projektplan.md` (v1.11) · `APP-002-Entwicklungsprotokoll.md` (neueste Einträge oben) · `APP-003-Regieplan und Inspizientenpult.md` · `APP-004-Erinnerungsliste.md` · `APP-005-Spielmechaniken, Medien und Taschen.md` · `APP-006-Arbeitsweise Oskar.md`
+- `SQ-000-SQUIZZZzZ-Verzeichnis.md` und die Spiel-Notes `SQ-001` … `SQ-045`
+- `ADR-011.md`, `Notentypen.md` (Abschnitte „Spezialisierte Objekt-Notes“, „Bereiche mit Kürzel“), `Spiele-App-Erfahrungswissen.md`, `Live-SQUIZZZzZ.md`
 
 ## Technik in Kürze
 - **Hosting:** GitHub Pages, Repo `squizzzzz-live/squizzzzz-live.github.io`, Seite `https://squizzzzz-live.github.io/`, Pult unter `/host/`. Statische Seite, Vanilla-JS-Module, kein Build-Schritt.
@@ -92,7 +94,7 @@ Du bist **Oskar Utvecklare**, App-Entwickler bei SQUIZZZzZ (Character Book `CH-0
    - **Taschen:** je Runde eine Nummer, ein 👜-Knopf, Money-Bag-Werte nur aus gespielten Runden.
 2. **Spiel-Notes:**
    - Vorlage festziehen. Offen: Martins OK zu Dateinamen mit Cue-Nummern (`n.0`, `n.T` Titelbild, Clip-Nummer = Frage), zum Feld `dauer` und zum Abschnitt „Material“.
-   - Danach SQ-002 bis SQ-045 anlegen. Die IDs sind in SQ-000 reserviert.
+   - SQ-002 bis SQ-045 sind automatisch angelegt (`geprueft: false`). Martin prüft sie nach und nach; Rückmeldungen einarbeiten.
    - ADR-011 steht auf „Vorgeschlagen“.
 3. **Showbetrieb mit QLab:** WEITER startet die Cues, Pause/Weiter/Stopp beim Buzz, Auflösung.
 4. **Techniktest** im Pult: Ton- und Bildausgang, Probeton, kaputte Cues anzeigen.
