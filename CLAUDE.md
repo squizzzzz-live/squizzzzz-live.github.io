@@ -59,7 +59,7 @@ Alles steht im **Vault** (seit 25.10.2026, nichts mehr in `05 App/00 Projekt`):
 - **Vor jedem Push:**
   1. `bash tools/bump.sh` (Cache-Busting `?v=`, `version.json`)
   2. `node --check` für geänderte JS-Dateien
-  3. E2E-Test (`tests/README.md`)
+  3. E2E-Test (`tests/README.md`; läuft auf Martins Mac, Testrunden im festen Klon unter `tests/e2e/rounds/`)
 
   Danach den Build prüfen: `gh api "repos/squizzzzz-live/squizzzzz-live.github.io/actions/runs?per_page=5" --jq '.workflow_runs[] | select(.name=="pages build and deployment") | "\(.head_sha[0:7]) \(.status) \(.conclusion)"'`
 - **Arbeitsordner auf Martins Mac:** `~/Desktop/SQUIZZZzZ/05 App/30 App-Repo` (Git-Klon, eingerichtet mit GitHub Desktop, Konto SQUIZZZzZMartin). Die frühere „30 App-Kopie“ liegt im Archiv und wird nicht mehr gepflegt. Vor der Arbeit `git pull`.
@@ -74,7 +74,7 @@ Alles steht im **Vault** (seit 25.10.2026, nichts mehr in `05 App/00 Projekt`):
   - Bei unbekannter Cue-Nummer kommt keine Antwort.
   - Float-Werte werden still ignoriert.
   - Ausgänge: `/settings/audio/patchList`, `/settings/video/stages`. Ob sich die Cue-Eigenschaft `stageID` setzen lässt, ist noch ungeprüft.
-- **QLab-Nummern** (vergibt das Pult, Gruppe = Blocknummer n):
+- **QLab-Nummern** (vergibt das Pult, Gruppe = Blocknummer n; Stand heute, mit dem neuen Regieplan wird `L1`/`L2` zu einem Grundbild-Cue `n.G`):
   - Runde: `n.0` Erklärfilm · `n.L1` Bildschirmschoner → `n.L2` Standbild · `n.1…` Clips · `n.x.1` Auflösung
   - Leinwand: `n.1` → `n.2`
   - Pause: `n.1` → `n.2` → `n.3`
@@ -83,23 +83,27 @@ Alles steht im **Vault** (seit 25.10.2026, nichts mehr in `05 App/00 Projekt`):
 
 ## Stand und nächste Schritte (25.10.2026)
 **Fertig und live:**
-- Keypad- und Buzzin-Runden: Sperren, Buzz-Zeiten, spontane Fragen, Springen, Warteseite, Gruppen, Buzzernamen, QR
+- Keypad- und Buzzin-Runden: Sperren, spontane Fragen, Springen, Warteseite (künftig „Foyer“), Gruppen, Buzzernamen, QR
+- Buzz: orangener Blitz + Android-Vibration beim Schnellsten; Buzz-Zeiten nur im Pult, nicht auf den Handys
 - Pult als Mac-App, Update-Hinweis
 - Regieplan (P1): Blöcke Film, Moderation, Runde, Leinwand, Pause, Sieger; Pfade, Standards, „Alles prüfen“, Export/Import, Ablaufleiste mit WEITER bzw. Leertaste
-- „QLab befüllen“ inklusive Ton- und Bildausgang
+- „QLab befüllen“ inklusive Ton- und Bildausgang (am echten QLab noch ungetestet)
 
-**Als Nächstes, in dieser Reihenfolge mit Martin klären:**
-1. **Regieplan überarbeiten.** Martin sagt: „passt noch nicht wirklich“. Erst fragen, was nicht passt.
-   - Er soll die **Spiel-Notes (SQ)** als Vorlage nutzen: Spielart wählen, dann Erklärfilm, Medien, Clips und Tasche vorbelegen.
-   - **Zuordnung Frage ↔ Clip** ausdrücklich führen. Nach Namen sortieren reicht nicht, siehe Dalli Deck 2.
-   - **Taschen:** je Runde eine Nummer, ein 👜-Knopf, Money-Bag-Werte nur aus gespielten Runden.
-2. **Spiel-Notes:**
-   - Vorlage festziehen. Offen: Martins OK zu Dateinamen mit Cue-Nummern (`n.0`, `n.T` Titelbild, Clip-Nummer = Frage), zum Feld `dauer` und zum Abschnitt „Material“.
-   - SQ-002 bis SQ-045 sind automatisch angelegt (`geprueft: false`). Martin prüft sie nach und nach; Rückmeldungen einarbeiten.
-   - ADR-011 ist akzeptiert (25.10.2026).
-3. **Showbetrieb mit QLab:** WEITER startet die Cues, Pause/Weiter/Stopp beim Buzz, Auflösung.
-4. **Techniktest** im Pult: Ton- und Bildausgang, Probeton, kaputte Cues anzeigen.
-5. Später: Nearest Wins, Beamer-Ansicht, Siegerverkündung, Export nach `06 Events`, Lasttest mit Martin als misterQ.
+**Entschieden am 25.10.2026** (Details im obersten Eintrag von APP-002):
+- **Begriffe:** Grundbild (funkelnder Hintergrund + Logo, kommt automatisch nach jedem Film, bleibt auf dem letzten Bild stehen), Foyer (Handy-Wartebildschirm), Spalte „Auslöser“ im Ablauf.
+- **Dateinamen:** `n.0` Erklärfilm, `n.T` Titelbild, Clip `1 …` = Frage 1, Auflösung `1.1 …`. Das Pult ordnet nur nach Nummer zu und prüft.
+- **Soundscheme** (global, nicht in der Spiel-Note): Start-/End-Jingle, Korrekt, Falsch.
+- **Keypad und Nearest Wins:** „Zeit getrennt starten“ und „Auflösung in zwei Schritten“, je Runde einstellbar, je Frage änderbar, beides Standard.
+- **Spiel-Notes:** Felder `dauer`, Abschnitt „Material“ (Tasche nie auf der Bühne, nur im Film), Spalte „Fragearten“ bei Keypad.
+- **Money Bag:** Taschen der gespielten Runden mit Designer, Name, Farbe/Form, Preis; Varianten Summe, Differenz, Durchschnitt, auch Auswahlfragen (z. B. Farbe).
+- Layout/Oberfläche kommt mit dem neuen Regieplan.
+
+**Als Nächstes:**
+1. **Regieplan Version 2:** Konzept in `APP-003` (Entwurf). Martin liest es und beantwortet die offenen Fragen dort (u. a. ob die Mac-App den Vault lesen darf). Erst danach bauen, Schritte R1–R6.
+2. **Spiel-Notes:** Martin prüft SQ-002 … SQ-045 nach und nach, Rückmeldungen einarbeiten.
+3. **Gemeinsamer Probelauf:** kompletter Abend, 15 simulierte Spieler in 4 Gruppen; vorher Mac-App 0.1.4 installieren, „QLab befüllen“ (leere Liste), Bildausgang und „automatisch weiter“ am echten QLab testen.
+4. **Auf der Liste (später):** Minuspunkte bei Buzzin (Standard aus), Timezone mit Timer (Martin tendiert zu „jeder stoppt seine eigene Zeit“), Beamer-Ansicht, Siegerverkündung, Export nach `06 Events`.
 
 **Vorschläge, die Martin noch umsetzen muss** (fremde Dateien):
 - Arthurs Character Book an die SQ-Notes anpassen
+- In „Live-SQUIZZZzZ“ klarstellen, dass Lissi die Tasche nur im Film zeigt
