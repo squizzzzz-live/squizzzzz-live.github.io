@@ -217,3 +217,12 @@
 .game-name { font-weight: 800; flex: 1; min-width: 0; }
 .game-ok { font-size: .85rem; }
 .game-meta { margin-top: 3px; }
+.game { padding: 0; }
+.game-btn { display: block; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 9px 11px; cursor: pointer; border-radius: 12px; }
+.game-btn:hover, .game.open .game-btn { background: rgba(255,255,255,.05); }
+.decks { display: grid; gap: 6px; padding: 4px 11px 11px; }
+.deck { display: grid; gap: 2px; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--orange); background: rgba(255,142,0,.10); color: var(--text); font: inherit; cursor: pointer; }
+.deck:hover { background: rgba(255,142,0,.22); }
+.deck:disabled { opacity: .5; cursor: default; }
+.deck-name { font-weight: 800; }
+.pb-src { margin: 2px 0 8px; color: var(--orange); }

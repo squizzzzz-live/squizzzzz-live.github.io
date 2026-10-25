@@ -102,6 +102,7 @@ export function parseGame(name, text) {
     format: String(fm.format || ""),
     geprueft: fm.geprueft === true,
     kurz: (/^>\s*(.+)$/m.exec(text) || [])[1]?.trim() || "",
+    steckbrief: steck,
     decks,
   };
 }

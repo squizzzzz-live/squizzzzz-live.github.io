@@ -1,13 +1,13 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610252007";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610252007";
-import { initRound } from "./host-round.js?v=202610252007";
-import { initLobby } from "./host-lobby.js?v=202610252007";
-import { initPlan } from "./host-plan.js?v=202610252007";
-import { initGames } from "./host-games.js?v=202610252007";
-import { isMac } from "./mac.js?v=202610252007";
-import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610252007";
-import { shrink } from "./images.js?v=202610252007";
+import { startRibbons } from "./ribbons.js?v=202610252029";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610252029";
+import { initRound } from "./host-round.js?v=202610252029";
+import { initLobby } from "./host-lobby.js?v=202610252029";
+import { initPlan } from "./host-plan.js?v=202610252029";
+import { initGames } from "./host-games.js?v=202610252029";
+import { isMac } from "./mac.js?v=202610252029";
+import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610252029";
+import { shrink } from "./images.js?v=202610252029";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
@@ -42,7 +42,7 @@ const roundCtl = initRound({
   onRound: () => planCtl && planCtl.renderBar(),
   onFinished: (blockId) => planCtl && planCtl.roundFinished(blockId),
 });
-const gamesCtl = initGames({ visible: () => !!game && tab() === "regieplan" });
+const gamesCtl = initGames({ visible: () => !!game && tab() === "regieplan", addRound: (f) => planCtl.addRound(f) });
 const planCtl = initPlan({
   game: () => game, err, round: roundCtl, active: () => tab() === "spiel", gameTitle: () => pub.title || "",
 });

@@ -1,10 +1,10 @@
 // QLab aus dem Regieplan befüllen. Läuft nur in der Mac-App „SQUIZZZzZ Pult“ (OSC über die Brücke).
 // Nummern: Gruppe = Blocknummer n · n.0 Erklärfilm · n.L1/n.L2 Leinwand (Film → Standbild) · n.1 … Clips · n.x.1 Auflösung
-import { mac, listDir } from "./mac.js?v=202610252007";
+// Clips werden über die Nummer im Dateinamen den Fragen zugeordnet (clipmap.js), nicht nach Namen sortiert.
+import { mac, listDir } from "./mac.js?v=202610252029";
+import { mapByNumber, problems } from "./clipmap.js?v=202610252029";
 
 const AUDIO = /\.(mp3|wav|aiff?|m4a|aac)$/i;
-const VIDEO = /\.(mp4|mov|m4v)$/i;
-const sortNames = (a, b) => a.localeCompare(b, "de", { numeric: true, sensitivity: "base" });
 const fileName = (p) => (p || "").split("/").pop();
 const cueType = (path) => (AUDIO.test(path) ? "audio" : "video");   // Video-Cues spielen auch Standbilder
 export const AUTO_FOLLOW = 2;
@@ -16,9 +16,17 @@ export async function q(address, args = []) {
   return r.data;
 }
 
-async function clips(dir, filter) {
-  const items = await listDir(dir);
-  return items.filter((f) => !f.dir && filter.test(f.name)).map((f) => dir + "/" + f.name).sort(sortNames);
+/** Clips und Auflösungen einer Runde nach Nummer (siehe clipmap.js). Auflösungen im eigenen Ordner dürfen „3 …“ heißen. */
+export async function clipMap(b, mt, nq) {
+  const names = (await listDir(b.clipsDir)).filter((f) => !f.dir).map((f) => f.name);
+  const r = mapByNumber(names, mt, nq);
+  r.solveDir = b.clipsDir;
+  if (mt === "video" && b.solveDir && b.solveDir !== b.clipsDir) {
+    const s = mapByNumber((await listDir(b.solveDir)).filter((f) => !f.dir).map((f) => f.name), "video", nq, { solvesPlain: true });
+    r.solves = s.solves; r.solveDir = b.solveDir;
+  }
+  if (mt !== "video") r.solves = new Map();
+  return r;
 }
 
 /**
@@ -53,14 +61,15 @@ export async function buildSpec(blocks, eff, titleOf, countQuestions) {
       else warn.push(`Block ${n} „${title}“: kein Erklärfilm eingetragen.`);
       if (mt !== "video") ch.push(leaf(`${n}.L1`, "Leinwand: Bildschirmschoner", eff("saverFilm"), AUTO_FOLLOW), leaf(`${n}.L2`, "Leinwand: Standbild", eff("saverStill")));
       if ((mt === "audio" || mt === "video") && b.clipsDir) {
-        const list = await clips(b.clipsDir, mt === "audio" ? AUDIO : VIDEO);
-        const sol = mt === "video" && b.solveDir ? await clips(b.solveDir, VIDEO) : [];
+        // Zuordnung über die Nummer im Dateinamen: „3 …“ = Frage 3, „3.1 …“ = Auflösung 3
         const nq = await countQuestions(b);
-        if (nq && list.length !== nq) warn.push(`Block ${n} „${title}“: ${list.length} Clips für ${nq} Fragen.`);
-        list.forEach((f, j) => {
-          ch.push(leaf(`${n}.${j + 1}`, `Frage ${j + 1} · ${fileName(f)}`, f));
-          if (sol[j]) ch.push(leaf(`${n}.${j + 1}.1`, `Auflösung ${j + 1} · ${fileName(sol[j])}`, sol[j]));
-        });
+        const r = await clipMap(b, mt, nq);
+        for (const p of problems(r)) warn.push(`Block ${n} „${title}“: ${p}.`);
+        for (let q = 1; q <= r.n; q++) {
+          const c = r.clips.get(q), s = r.solves.get(q);
+          if (c) ch.push(leaf(`${n}.${q}`, `Frage ${q} · ${c}`, b.clipsDir + "/" + c));
+          if (s) ch.push(leaf(`${n}.${q}.1`, `Auflösung ${q} · ${s}`, r.solveDir + "/" + s));
+        }
       } else if (mt !== "none") warn.push(`Block ${n} „${title}“: Medien „${mt === "audio" ? "Ton" : "Film"}“, aber kein Clip-Ordner.`);
       spec.push({ type: "group", number: n, name: title, children: ch });
     }

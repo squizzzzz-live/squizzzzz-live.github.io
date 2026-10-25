@@ -1,11 +1,12 @@
 // Regieplan: den Abend vorbereiten (Reiter „Regieplan“) und im Pult Schritt für Schritt abarbeiten (Leiste im Reiter „Spiel“).
 // Ein Block ist Film, Moderation, Runde, Pause oder Siegerverkündung. Runden zeigen auf eine Datei im Ordner SQUIZZZzZ,
 // die das Pult (Mac-App) erst beim Start der Runde liest. QLab kommt in P3 dazu.
-import { db } from "./fb.js?v=202610252007";
-import { parseSpeedquizzing } from "./sqq.js?v=202610252007";
-import { shrink } from "./images.js?v=202610252007";
-import { buildSpec, fill, countCues, setAudioPatch, setStage, listOutputs } from "./qlab.js?v=202610252007";
-import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610252007";
+import { db } from "./fb.js?v=202610252029";
+import { parseSpeedquizzing } from "./sqq.js?v=202610252029";
+import { shrink } from "./images.js?v=202610252029";
+import { buildSpec, fill, countCues, setAudioPatch, setStage, listOutputs, clipMap } from "./qlab.js?v=202610252029";
+import { problems as clipProblems } from "./clipmap.js?v=202610252029";
+import { isMac, readText, readBlob, listDir } from "./mac.js?v=202610252029";
 import { ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const $ = (id) => document.getElementById(id);
@@ -74,6 +75,16 @@ export function initPlan(ctx) {
     if (type === "leinwand") Object.assign(b, { film: "", still: "" });
     if (type === "pause") Object.assign(b, { media: "", thenCanvas: true });
     blocks.push(b); saveBlocks();
+  }
+  /** Runde aus einem Steckbrief anlegen (Regieplan v2, R2): Felder kommen fertig aus host-games.js, danach sofort prüfen. */
+  function addRound(fields) {
+    if (!ctx.game()) throw new Error("Erst ein Spiel anlegen.");
+    const b = { id: "b" + Date.now().toString(36), type: "runde", title: "", notes: "", reserve: false,
+      file: "", image: "", explain: "", mediaType: "none", clipsDir: "", solveDir: "",
+      s: { duration: 20, lockWho: "player", lockLen: 2, sendq: true }, ...fields };
+    blocks.push(b); saveBlocks();
+    if (isMac()) checkBlock(b);
+    return b;
   }
   document.querySelectorAll("[data-add-block]").forEach((btn) => btn.addEventListener("click", () => addBlock(btn.dataset.addBlock)));
 
@@ -145,15 +156,10 @@ export function initPlan(ctx) {
     if (b.type === "pause") { add("Pausenfilm", b.media || eff("pauseFilm")); if (b.thenCanvas !== false) { add("Bildschirmschoner", eff("saverFilm")); add("Standbild", eff("saverStill")); } }
     return out;
   }
-  async function clipsIn(dir, kind, cache) {
-    const filter = kind === "audio" ? FILTERS.audio : FILTERS.video;
-    if (!cache.has(dir)) cache.set(dir, listDir(dir));
-    return (await cache.get(dir)).filter((f) => !f.dir && filter.test(f.name)).map((f) => f.name).sort(sortNames);
-  }
   async function exists(path, kind, cache) {
     const parent = path.split("/").slice(0, -1).join("/"), name = fileName(path);
     if (!cache.has(parent)) cache.set(parent, listDir(parent).catch(() => []));
-    const hit = (await cache.get(parent)).find((f) => f.name === name);
+    const hit = (await cache.get(parent)).find((f) => f.name.normalize("NFC") === name.normalize("NFC"));   // Umlaute: macOS zerlegt sie oft
     return !!hit && (kind === "dir" ? hit.dir : !hit.dir);
   }
   async function checkBlock(b, cache = new Map()) {
@@ -170,15 +176,13 @@ export function initPlan(ctx) {
         const n = parsed.questions.length, pics = parsed.questions.filter((q) => q.picture).length;
         parts.push(`${n} Fragen · ${parsed.mode === "buzzin" ? "Buzzin" : "Keypad"}${pics ? ` · ${pics} mit Bild` : ""}`);
         checks[b.id + ":n"] = n;
-        if ((b.mediaType === "audio" || b.mediaType === "video") && b.clipsDir && !problems.some((p) => p.startsWith("Clip-Ordner"))) {
-          const clips = await clipsIn(b.clipsDir, b.mediaType, cache);
-          if (clips.length === n) parts.push(`${clips.length} Clips passen`); else problems.push(`${clips.length} Clips für ${n} Fragen`);
-          checks[b.id + ":clips"] = clips;
-        }
-        if (b.mediaType === "video" && b.solveDir && !problems.some((p) => p.startsWith("Auflösungs"))) {
-          const sol = await clipsIn(b.solveDir, "video", cache);
-          parts.push(`${sol.length} Auflösungen`);
-          if (sol.length && sol.length !== n) problems.push(`${sol.length} Auflösungen für ${n} Fragen`);
+        if ((b.mediaType === "audio" || b.mediaType === "video") && b.clipsDir && !problems.some((p) => p.startsWith("Clip-Ordner") || p.startsWith("Auflösungs"))) {
+          // Nummer im Dateinamen = Fragennummer (clipmap.js)
+          const r = await clipMap(b, b.mediaType, n);
+          const bad = clipProblems(r);
+          if (bad.length) problems.push(...bad); else parts.push(`${r.clips.size} Clips passen (Nummer = Frage)`);
+          if (b.mediaType === "video") parts.push(r.solves.size ? `${r.solves.size} Auflösungen` : "keine Auflösungen");
+          checks[b.id + ":clips"] = Array.from({ length: r.n }, (_, i) => ({ q: i + 1, clip: r.clips.get(i + 1) || "", solve: r.solves.get(i + 1) || "" }));
         }
         if (!b.explain) parts.push("ohne Erklärfilm");
       }
@@ -270,7 +274,7 @@ export function initPlan(ctx) {
   const chk = (b, ck2) => `<div class="pb-row"><span class="pb-lbl"></span><button type="button" class="btn secondary small" data-act="check">Prüfen</button></div>` + ck2;
   function clipList(b) {
     const clips = checks[b.id + ":clips"]; if (!clips || !clips.length) return "";
-    return `<details class="pb-clips"><summary class="small">Zuordnung Frage → Clip anzeigen</summary><ol>${clips.map((c) => `<li>${esc(c)}</li>`).join("")}</ol></details>`;
+    return `<details class="pb-clips"><summary class="small">Zuordnung Frage → Clip anzeigen</summary><ol>${clips.map((c) => `<li>${c.clip ? esc(c.clip) : "<span class='warn-note'>fehlt</span>"}${c.solve ? ` · Auflösung: ${esc(c.solve)}` : ""}</li>`).join("")}</ol></details>`;
   }
   function qlabPreview(b, n) {
     if (b.type === "moderation") return "nichts";
@@ -359,15 +363,16 @@ export function initPlan(ctx) {
       const ck2 = ck ? `<div class="pb-check ${ck.pending ? "" : ck.ok ? "ok" : "bad"}">${ck.pending ? "Prüfe …" : (ck.ok ? "✓ " : "✗ ") + esc(ck.text)}</div>` : "";
       if (b.type === "runde") {
         const mt = b.mediaType || "none";
-        body = pathRow(b, "file", "Runde", "00 Fragensammlung/…/Runde.sqq", "round", "Rundendatei wählen")
+        const src = b.game ? `<div class="small pb-src">📋 aus Steckbrief ${esc(b.game)}${b.deckNr ? ` · Deck ${esc(b.deckNr)}${b.deckName ? " " + esc(b.deckName) : ""}` : ""}${b.tasche ? ` · 👜 Tasche ${esc(b.tasche)}` : ""}${b.dauer ? ` · ⏱ ${esc(b.dauer)}` : ""}</div>` : "";
+        body = src + pathRow(b, "file", "Runde", "00 Fragensammlung/…/Runde.sqq", "round", "Rundendatei wählen")
           + pathRow(b, "image", "Titelbild", "optional – sonst automatische Titelkarte", "image", "Titelbild wählen")
           + pathRow(b, "explain", "Erklärfilm", "Erklärfilm mit Lissi (läuft immer zuerst)", "video", "Erklärfilm wählen")
           + `<div class="pb-row"><span class="pb-lbl">Medien</span><select data-k="mediaType">
                <option value="none" ${mt === "none" ? "selected" : ""}>keine – Leinwand zeigt Bildschirmschoner</option>
                <option value="audio" ${mt === "audio" ? "selected" : ""}>Ton – je Frage ein Audio-Clip, Leinwand zeigt Bildschirmschoner</option>
                <option value="video" ${mt === "video" ? "selected" : ""}>Film – je Frage ein Video-Clip</option></select></div>`
-          + (mt === "audio" || mt === "video" ? pathRow(b, "clipsDir", "Clips", "Ordner – Dateien werden nach Namen sortiert den Fragen zugeordnet", mt, "Ordner mit den Clips wählen", "dir") : "")
-          + (mt === "video" ? pathRow(b, "solveDir", "Auflösung", "optional: Ordner mit Auflösungen (Dalli Klick, Muhviestar)", "video", "Ordner mit den Auflösungen wählen", "dir") : "")
+          + (mt === "audio" || mt === "video" ? pathRow(b, "clipsDir", "Clips", "Ordner – Nummer im Dateinamen = Frage (3 … = Frage 3, 3.1 … = Auflösung)", mt, "Ordner mit den Clips wählen", "dir") : "")
+          + (mt === "video" ? pathRow(b, "solveDir", "Auflösung", "optional: eigener Ordner mit Auflösungen – sonst „3.1 …“ im Clip-Ordner", "video", "Ordner mit den Auflösungen wählen", "dir") : "")
           + `<div class="pb-row"><span class="pb-lbl"></span><button type="button" class="btn secondary small" data-act="check">Prüfen</button></div>`
           + ck2 + clipList(b)
           + `<div class="settings pb-set">
@@ -540,5 +545,5 @@ export function initPlan(ctx) {
     if (active && active.scrollIntoView && bar.dataset.pos !== String(pos)) { active.scrollIntoView({ block: "nearest", inline: "center" }); bar.dataset.pos = String(pos); }
   }
 
-  return { attach, detach, renderBar, renderEditor, roundFinished: (id) => id && markDone(id) };
+  return { attach, detach, renderBar, renderEditor, addRound, roundFinished: (id) => id && markDone(id) };
 }
