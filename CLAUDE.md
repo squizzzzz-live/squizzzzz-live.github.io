@@ -95,12 +95,10 @@ Alles steht im **Vault** (seit 25.10.2026, nichts mehr in `05 App/00 Projekt`):
 2. **Spiel-Notes:**
    - Vorlage festziehen. Offen: Martins OK zu Dateinamen mit Cue-Nummern (`n.0`, `n.T` Titelbild, Clip-Nummer = Frage), zum Feld `dauer` und zum Abschnitt „Material“.
    - SQ-002 bis SQ-045 sind automatisch angelegt (`geprueft: false`). Martin prüft sie nach und nach; Rückmeldungen einarbeiten.
-   - ADR-011 steht auf „Vorgeschlagen“.
+   - ADR-011 ist akzeptiert (25.10.2026).
 3. **Showbetrieb mit QLab:** WEITER startet die Cues, Pause/Weiter/Stopp beim Buzz, Auflösung.
 4. **Techniktest** im Pult: Ton- und Bildausgang, Probeton, kaputte Cues anzeigen.
 5. Später: Nearest Wins, Beamer-Ansicht, Siegerverkündung, Export nach `06 Events`, Lasttest mit Martin als misterQ.
 
 **Vorschläge, die Martin noch umsetzen muss** (fremde Dateien):
-- ADR-011 in `ADR-000` eintragen
 - Arthurs Character Book an die SQ-Notes anpassen
-- Projekt-Anweisungen „Oskar“ in claude.ai auf die neuen Pfade bringen (falls noch nicht geschehen)
