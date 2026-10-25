@@ -1,4 +1,7 @@
 const { chromium } = require('playwright');
+// Testrunden: erst tests/e2e/rounds, sonst im festen Klon auf Martins Mac (Worktrees haben keine)
+const ROUNDS = [__dirname + "/rounds", require("os").homedir() + "/Desktop/SQUIZZZzZ/05 App/30 App-Repo/tests/e2e/rounds"].find((d) => require("fs").existsSync(d + "/buzz.sqb"));
+if (!ROUNDS) { console.error("Testrunden fehlen: keypad.sqq und buzz.sqb nach tests/e2e/rounds/ legen (siehe tests/README.md)"); process.exit(1); }
 const B = "http://localhost:8770";
 (async () => {
   const br = await chromium.launch({ executablePath: require('fs').existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined, args: [] }); const ctx = await br.newContext(); const errs = [];
@@ -15,12 +18,16 @@ const B = "http://localhost:8770";
   const P = {};
   for (const n of ['Anna','Ben','Carla','Moritz']) { const p = await mk(n, { width: 390, height: 844 }); await p.goto(`${B}/?g=BUZZ`); await p.waitForTimeout(400); await p.click(`.name-btn span:text-is("${n}")`); P[n] = p; }
   await host.click('a[data-tab=rezeption]'); await host.waitForTimeout(200); await host.click('#sound-btn'); await host.waitForTimeout(1500); console.log('audio state', await host.evaluate(() => document.getElementById('sound-chip').textContent)); await shot(host, '00_rezeption_sound');
-  await host.click('a[data-tab=spiel]'); await host.setInputFiles('#round-file', require('path').resolve(__dirname, 'rounds/buzz.sqb')); await host.click('#round-load'); await host.waitForTimeout(700);
+  await host.click('a[data-tab=spiel]'); await host.setInputFiles('#round-file', ROUNDS + '/buzz.sqb'); await host.click('#round-load'); await host.waitForTimeout(700);
   await host.selectOption('#lock-who', 'team'); await host.selectOption('#lock-len', '2');
   await shot(host, '01_ready');
   await host.click('#b-open'); await host.waitForTimeout(500); await shot(P.Anna, '02_anna_buzz');
   await Promise.all([P.Moritz.click('#bz-btn'), P.Anna.waitForTimeout(60).then(() => P.Anna.click('#bz-btn', { force: true, timeout: 2000 }).catch(() => {}))]); await host.waitForTimeout(700);
   console.log('played', JSON.stringify(await host.evaluate(() => globalThis.__sqzLastPlay)));
+  // Blitz nur beim Schnellsten (Moritz), nicht bei den anderen
+  const flash = async (p) => p.evaluate(() => document.getElementById('buzzflash')?.classList.contains('on'));
+  const fl = { Moritz: await flash(P.Moritz), Anna: await flash(P.Anna) }; console.log('flash', JSON.stringify(fl));
+  if (!fl.Moritz || fl.Anna) errs.push('Blitz falsch: ' + JSON.stringify(fl));
   await shot(host, '03_host_buzzed'); await shot(P.Ben, '04_ben_dran'); await shot(P.Anna, '05_anna_other');
   await host.click('#b-wrong'); await host.waitForTimeout(700);
   await shot(P.Moritz, '06_moritz_locked'); await shot(P.Anna, '07_anna_reopen'); await shot(host, '08_host_after_wrong');

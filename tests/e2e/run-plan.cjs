@@ -1,10 +1,13 @@
 const { chromium } = require('playwright');
+// Testrunden: erst tests/e2e/rounds, sonst im festen Klon auf Martins Mac (Worktrees haben keine)
+const ROUNDS = [__dirname + "/rounds", require("os").homedir() + "/Desktop/SQUIZZZzZ/05 App/30 App-Repo/tests/e2e/rounds"].find((d) => require("fs").existsSync(d + "/buzz.sqb"));
+if (!ROUNDS) { console.error("Testrunden fehlen: keypad.sqq und buzz.sqb nach tests/e2e/rounds/ legen (siehe tests/README.md)"); process.exit(1); }
 const fs = require('fs');
 const B = "http://localhost:8770";
 const FILES = {
-  "00 Fragensammlung/Test/01_Kuh_Mini.sqq": fs.readFileSync(__dirname + '/rounds/keypad.sqq', 'utf8'),
-  "00 Fragensammlung/Test/02_Zehner_Mini.sqb": fs.readFileSync(__dirname + '/rounds/buzz.sqb', 'utf8'),
-  "00 Fragensammlung/Test/03_Reserve.sqq": fs.readFileSync(__dirname + '/rounds/keypad.sqq', 'utf8'),
+  "00 Fragensammlung/Test/01_Kuh_Mini.sqq": fs.readFileSync(ROUNDS + '/keypad.sqq', 'utf8'),
+  "00 Fragensammlung/Test/02_Zehner_Mini.sqb": fs.readFileSync(ROUNDS + '/buzz.sqb', 'utf8'),
+  "00 Fragensammlung/Test/03_Reserve.sqq": fs.readFileSync(ROUNDS + '/keypad.sqq', 'utf8'),
   "00 Fragensammlung/Test/Clips/01 Frage.mp3": "", "00 Fragensammlung/Test/Clips/02 Frage.mp3": "", "00 Fragensammlung/Test/Clips/10 Frage.mp3": "",
   "00 Fragensammlung/Test/Erklärung.mp4": "",
   "01 Trailer/12 Intermezzo/Sparkling Blue Background.mp4": "", "01 Trailer/12 Intermezzo/Standbild Sparkling Background.jpg": "",
