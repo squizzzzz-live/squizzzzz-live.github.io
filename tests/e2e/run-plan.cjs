@@ -13,15 +13,23 @@ const FILES = {
   "01 Trailer/12 Intermezzo/Sparkling Blue Background.mp4": "", "01 Trailer/12 Intermezzo/Standbild Sparkling Background.jpg": "",
   "01 Trailer/14 Jovis tanzt/Jovis tanzt_V1.1.mp4": "",
 };
+// Steckbriefe aus Martins Vault (nur lokal, nie ins Repo); fehlt der Vault, läuft der Test mit zwei Mini-Notes
+const VAULT = require('os').homedir() + '/Library/Mobile Documents/iCloud~md~obsidian/Documents/SQUIZZZzZ Operating System';
+const NOTES = fs.existsSync(VAULT)
+  ? fs.readdirSync(VAULT).filter((n) => /^SQ-0\d\d-.*\.md$/.test(n)).map((n) => ({ name: n, text: fs.readFileSync(VAULT + '/' + n, 'utf8') }))
+  : [{ name: 'SQ-001-Test.md', text: '---\ntyp: Spiel\nid: SQ-001\nname: Test\nmechanik: ["Buzzin"]\nmedien: Film\ndauer: "10 min"\n---\n' },
+     { name: 'SQ-002-Dalli.md', text: '---\ntyp: Spiel\nid: SQ-002\nname: Dalli\nmechanik: []\nmedien: keine\n---\n' }];
+const EXPECT_GAMES = NOTES.filter((n) => /^typ: Spiel$/m.test(n.text)).length;
 (async () => {
   const br = await chromium.launch({ executablePath: require('fs').existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined }); const ctx = await br.newContext(); const errs = [];
   const mk = async (n, vp) => { const p = await ctx.newPage(); await p.setViewportSize(vp); p.on('pageerror', e => errs.push(n + ': ' + e.message)); p.on('console', m => m.type() === 'error' && errs.push(n + ' console: ' + m.text())); p.on('dialog', d => d.accept()); return p; };
   const shot = async (p, n) => { await p.waitForTimeout(350); await p.screenshot({ path: `shots/plan-${n}.png`, fullPage: false }); };
   fs.mkdirSync("shots", { recursive: true });
   const host = await mk('host', { width: 1440, height: 950 });
-  await host.addInitScript((files) => {
+  await host.addInitScript(({ files, notes }) => {
     window.webkit = { messageHandlers: { sqz: { postMessage: async (m) => {
       const a = m.args || {};
+      if (m.cmd === 'sqNotes') return { notes, pending: [] };
       if (m.cmd === 'info') return { version: 'test', root: '/x', rootFound: true, passcodeSet: true };
       if (m.cmd === 'list') { const pre = a.path ? a.path + '/' : ''; const names = new Map();
         Object.keys(files).filter(k => k.startsWith(pre)).forEach(k => { const rest = k.slice(pre.length); const top = rest.split('/')[0]; names.set(top, rest.includes('/')); });
@@ -46,7 +54,7 @@ const FILES = {
       if (m.cmd === 'read') { if (!(a.path in files)) throw new Error('Datei nicht lesbar: ' + a.path); return files[a.path]; }
       throw new Error('unbekannt');
     } } } };
-  }, FILES);
+  }, { files: FILES, notes: NOTES });
   await host.goto(B + "/host/"); await host.evaluate(() => localStorage.clear()); await host.reload(); await host.waitForTimeout(500);
   await host.fill('#new-title', 'Plantest'); await host.fill('#wish', 'PLAN'); await host.click('#create'); await host.waitForTimeout(500);
   await host.click('a[data-tab=spieler]'); await host.fill('#add-names', 'Anna\nBen'); await host.click('#add-btn'); await host.waitForTimeout(300);
@@ -55,6 +63,15 @@ const FILES = {
 
   // Regieplan anlegen
   await host.click('a[data-tab=regieplan]'); await host.waitForTimeout(200);
+  // R1: Spieleliste aus den Steckbriefen
+  await host.waitForTimeout(400);
+  const gl = await host.evaluate(() => ({ n: document.querySelectorAll('#games-list .game').length, info: document.getElementById('games-info').textContent }));
+  console.log('Spiele', JSON.stringify(gl), 'erwartet', EXPECT_GAMES);
+  if (gl.n !== EXPECT_GAMES || !gl.info.startsWith(EXPECT_GAMES + ' Spiele')) errs.push('Spieleliste falsch: ' + JSON.stringify(gl));
+  await host.fill('#games-filter', 'dalli'); await host.waitForTimeout(100);
+  const gf = await host.evaluate(() => document.querySelectorAll('#games-list .game').length);
+  if (gf !== 1) errs.push('Suche „dalli“ liefert ' + gf);
+  await shot(host, '01b_spiele'); await host.fill('#games-filter', '');
   for (const t of ['film', 'moderation', 'runde', 'runde', 'runde', 'sieger']) { await host.click(`[data-add-block=${t}]`); await host.waitForTimeout(120); }
   const card = (i) => `#plan-list [data-i="${i}"]`;
   await host.fill(`${card(0)} [data-k=title]`, 'Vorspann'); await host.dispatchEvent(`${card(0)} [data-k=title]`, 'change');

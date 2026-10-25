@@ -1,8 +1,9 @@
 // SQUIZZZzZ Pult – dünne Mac-App um die Host-Seite.
 // Zeigt https://squizzzzz-live.github.io/host/ in einem eigenen Fenster und gibt der Seite
-// zwei Fähigkeiten, die ein Browser nicht hat:
+// drei Fähigkeiten, die ein Browser nicht hat:
 //   1. Dateien aus ~/Desktop/SQUIZZZzZ lesen (nur lesen, nur innerhalb dieses Ordners)
-//   2. QLab per OSC steuern (Passcode liegt im Mac-Schlüsselbund, nie in der Seite)
+//   2. die Spiel-Steckbriefe SQ-0xx-….md aus dem Obsidian-Vault lesen (nur lesen, nur diese Dateien, kein Pfad von außen)
+//   3. QLab per OSC steuern (Passcode liegt im Mac-Schlüsselbund, nie in der Seite)
 // Die Brücke antwortet nur der Hauptseite von squizzzzz-live.github.io über https.
 
 import Cocoa
@@ -14,6 +15,10 @@ let ALLOWED_HOST = "squizzzzz-live.github.io"
 let DEFAULT_START = URL(string: "https://squizzzzz-live.github.io/host/")!
 let TEST_PAGE = URL(string: "https://squizzzzz-live.github.io/host/mac-test.html")!
 let ROOT = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/SQUIZZZzZ", isDirectory: true)
+// Obsidian-Vault in iCloud. Gelesen werden daraus nur die Steckbriefe SQ-0xx-….md direkt in diesem Ordner.
+let VAULT = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Mobile Documents/iCloud~md~obsidian/Documents/SQUIZZZzZ Operating System", isDirectory: true)
+let MAX_NOTE = 1_000_000
+func isSteckbrief(_ name: String) -> Bool { name.range(of: #"^SQ-0\d\d-[^/]*\.md$"#, options: .regularExpression) != nil }
 let APP_VERSION = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "dev"
 let MAX_READ = 80_000_000
 
@@ -312,8 +317,38 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
         case "info":
             var isDir: ObjCBool = false
             let found = FileManager.default.fileExists(atPath: ROOT.path, isDirectory: &isDir) && isDir.boolValue
-            replyHandler(["version": APP_VERSION, "root": ROOT.path, "rootFound": found,
+            var vIsDir: ObjCBool = false
+            let vaultFound = FileManager.default.fileExists(atPath: VAULT.path, isDirectory: &vIsDir) && vIsDir.boolValue
+            replyHandler(["version": APP_VERSION, "root": ROOT.path, "rootFound": found, "vaultFound": vaultFound,
                           "passcodeSet": UserDefaults.standard.bool(forKey: "qlabPasscodeSet")], nil)
+
+        case "sqNotes":
+            // Keine Argumente: Die Seite kann hier keinen Pfad vorgeben, nur die Steckbriefe abholen.
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let fm = FileManager.default
+                    let items = try fm.contentsOfDirectory(at: VAULT, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey], options: [])
+                    var notes: [[String: Any]] = [], pending: [String] = []
+                    for f in items {
+                        let n = f.lastPathComponent
+                        // Von iCloud ausgelagerte Datei („.SQ-001-….md.icloud“): Download anstoßen, beim nächsten Mal ist sie da.
+                        if n.hasPrefix("."), n.hasSuffix(".icloud") {
+                            let real = String(n.dropFirst().dropLast(".icloud".count))
+                            if isSteckbrief(real) { pending.append(real); try? fm.startDownloadingUbiquitousItem(at: f) }
+                            continue
+                        }
+                        guard isSteckbrief(n) else { continue }
+                        let v = try? f.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+                        guard v?.isRegularFile == true, (v?.fileSize ?? 0) <= MAX_NOTE else { continue }
+                        guard let d = try? Data(contentsOf: f) else { pending.append(n); continue }
+                        notes.append(["name": n, "text": String(decoding: d, as: UTF8.self)])
+                    }
+                    notes.sort { ($0["name"] as! String).localizedStandardCompare($1["name"] as! String) == .orderedAscending }
+                    DispatchQueue.main.async { replyHandler(["notes": notes, "pending": pending.sorted()], nil) }
+                } catch {
+                    DispatchQueue.main.async { replyHandler(nil, "Steckbriefe nicht lesbar: \(error.localizedDescription)") }
+                }
+            }
 
         case "list":
             guard let u = resolve((args["path"] as? String) ?? "") else { replyHandler(nil, "Pfad liegt außerhalb von SQUIZZZzZ."); return }

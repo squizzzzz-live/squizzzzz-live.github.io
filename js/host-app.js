@@ -1,12 +1,13 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610251634";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610251634";
-import { initRound } from "./host-round.js?v=202610251634";
-import { initLobby } from "./host-lobby.js?v=202610251634";
-import { initPlan } from "./host-plan.js?v=202610251634";
-import { isMac } from "./mac.js?v=202610251634";
-import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610251634";
-import { shrink } from "./images.js?v=202610251634";
+import { startRibbons } from "./ribbons.js?v=202610252007";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610252007";
+import { initRound } from "./host-round.js?v=202610252007";
+import { initLobby } from "./host-lobby.js?v=202610252007";
+import { initPlan } from "./host-plan.js?v=202610252007";
+import { initGames } from "./host-games.js?v=202610252007";
+import { isMac } from "./mac.js?v=202610252007";
+import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610252007";
+import { shrink } from "./images.js?v=202610252007";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
@@ -41,6 +42,7 @@ const roundCtl = initRound({
   onRound: () => planCtl && planCtl.renderBar(),
   onFinished: (blockId) => planCtl && planCtl.roundFinished(blockId),
 });
+const gamesCtl = initGames({ visible: () => !!game && tab() === "regieplan" });
 const planCtl = initPlan({
   game: () => game, err, round: roundCtl, active: () => tab() === "spiel", gameTitle: () => pub.title || "",
 });
@@ -126,7 +128,7 @@ function route() {
   if (!game) return;
   const t = TABS.includes(tab()) ? tab() : "rezeption";
   document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === t));
-  show("v-" + t); renderAll();
+  show("v-" + t); renderAll(); gamesCtl.maybeLoad();
 }
 addEventListener("hashchange", route);
 

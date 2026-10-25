@@ -1,6 +1,6 @@
 // QLab aus dem Regieplan befüllen. Läuft nur in der Mac-App „SQUIZZZzZ Pult“ (OSC über die Brücke).
 // Nummern: Gruppe = Blocknummer n · n.0 Erklärfilm · n.L1/n.L2 Leinwand (Film → Standbild) · n.1 … Clips · n.x.1 Auflösung
-import { mac, listDir } from "./mac.js?v=202610251634";
+import { mac, listDir } from "./mac.js?v=202610252007";
 
 const AUDIO = /\.(mp3|wav|aiff?|m4a|aac)$/i;
 const VIDEO = /\.(mp4|mov|m4v)$/i;
