@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="sqz-build" content="202610240059">
+<meta name="sqz-build" content="202610251621">
 <meta name="theme-color" content="#0B106C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -69,6 +69,12 @@
   .bzstate { margin-top: 28px; padding: 26px 18px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); font-size: 1.6rem; font-weight: 900; }
   .bzstate small { display: block; font-size: .95rem; font-weight: 600; color: var(--muted); margin-top: 8px; }
   .bzstate.me { background: rgba(255,142,0,.22); border-color: var(--orange); box-shadow: 0 0 50px rgba(255,142,0,.35); }
+  /* Blitz über den ganzen Bildschirm, wenn man als Erster gebuzzert hat (Ersatz für Vibration auf dem iPhone) */
+  .buzzflash { position: fixed; inset: 0; z-index: 60; pointer-events: none; background: var(--orange); opacity: 0; }
+  .buzzflash.on { animation: bzflash 1.3s ease-out; }
+  @keyframes bzflash { 0% { opacity: .95; } 15% { opacity: .2; } 30% { opacity: .9; } 45% { opacity: .2; } 60% { opacity: .75; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .buzzflash.on { animation: bzfade 1s ease-out; } }
+  @keyframes bzfade { 0% { opacity: .6; } 100% { opacity: 0; } }
   .bztimes { list-style: none; padding: 0; margin: 18px auto 0; max-width: 320px; text-align: left; }
   .bztimes li { display: flex; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--line); font-weight: 700; }
   .bztimes li:first-child { color: var(--orange); }
@@ -77,9 +83,10 @@
   .big-check.bad { background: #E5484D; color: #fff; box-shadow: 0 0 40px rgba(229,72,77,.5); }
   .big-check.none { background: rgba(255,255,255,.15); color: var(--text); box-shadow: none; }
 </style>
-<link rel="stylesheet" href="css/base.css?v=202610240059">
+<link rel="stylesheet" href="css/base.css?v=202610251621">
 </head>
 <body>
+<div id="buzzflash" class="buzzflash" aria-hidden="true"></div>
 <main class="wrap">
   <div class="kicker">Live</div>
   <h1>SQUIZZZzZ</h1>
@@ -174,9 +181,9 @@
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610240059";
-  import { auth, db } from "./js/fb.js?v=202610240059";
-  import { isCorrect } from "./js/scoring.js?v=202610240059";
+  import { startRibbons } from "./js/ribbons.js?v=202610251621";
+  import { auth, db } from "./js/fb.js?v=202610251621";
+  import { isCorrect } from "./js/scoring.js?v=202610251621";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -192,6 +199,15 @@
   let game = (params.get("g") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   let uid = null, roster = {}, claims = {}, unsub = [], exists = false, loaded = false, watchdog = 0, allowGuests = false;
   let pub = {}, myAnswers = {}, shownQid = null, shownAt = 0, timerRaf = 0, teams = {}, lobby = {};
+  let flashedFor = null;
+  /** Einmal pro Buzz: Bildschirm blitzt orange, Android vibriert zweimal kurz (iPhone kann aus dem Browser nicht vibrieren). */
+  function buzzWinFeedback(key) {
+    if (flashedFor === key) return;
+    flashedFor = key;
+    const f = $("buzzflash");
+    f.classList.remove("on"); void f.offsetWidth; f.classList.add("on");
+    navigator.vibrate?.([150, 80, 150]);
+  }
 
 
   // ---------- Vollbild / Home-Bildschirm ----------
@@ -362,7 +378,7 @@
     if (lock) { hideFull(); btn.classList.add("hidden"); set_("locked", `Gesperrt<small>${lock.why || "falsche Antwort"} – bis einschließlich Frage ${lock.until + 1}</small>`); }
     else if (st === "buzzed" && pub.buzz) {
       hideFull(); btn.classList.add("hidden");
-      if (pub.buzz.uid === uid) { set_("me", `Du bist dran!<small>Sag laut Deine Antwort.</small>`); navigator.vibrate?.(200); }
+      if (pub.buzz.uid === uid) { set_("me", `Du bist dran!<small>Sag laut Deine Antwort.</small>`); buzzWinFeedback(pub.buzzId); }
       else set_("", `<span></span><small>ist dran</small>`), (box.querySelector("span").textContent = pub.buzz.name);
     } else if (st === "buzz") {
       if (myBuzz[pub.buzzId]) { btn.classList.add("hidden"); set_("", `Gebuzzert!<small>Mal sehen, wer schneller war …</small>`); }
@@ -585,6 +601,6 @@
     if (!document.hidden && game && !loaded) { goOffline(db); goOnline(db); joinGame(game); }
   });
 </script>
-<script type="module" src="js/update.js?v=202610240059"></script>
+<script type="module" src="js/update.js?v=202610251621"></script>
 </body>
 </html>

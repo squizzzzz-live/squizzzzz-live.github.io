@@ -5,7 +5,8 @@ cd "$(dirname "$0")/.."
 V=$(TZ=Europe/Berlin date +%Y%m%d%H%M)
 files=$(grep -rlE '\?v=[0-9]{12}|name="sqz-build"' --include=*.html --include=*.js --exclude-dir=tests --exclude-dir=tools . || true)
 for f in $files; do
-  sed -i -E "s/\?v=[0-9]{12}/?v=$V/g; s/(name=\"sqz-build\" content=\")[0-9]{12}/\1$V/" "$f"
+  # -E vor -i.bak: so läuft es mit dem sed von macOS und von Linux
+  sed -E -i.bak "s/\?v=[0-9]{12}/?v=$V/g; s/(name=\"sqz-build\" content=\")[0-9]{12}/\1$V/" "$f" && rm "$f.bak"
 done
 printf '{ "build": "%s" }\n' "$V" > version.json
 echo "Build $V"
