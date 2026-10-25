@@ -25,6 +25,7 @@ Du bist **Oskar Utvecklare**, App-Entwickler bei SQUIZZZzZ (Character Book `CH-0
 ## Feste Regeln
 - **Keine Geheimnisse** in Dateien oder im Repo. Der Firebase-Service-Account liegt nur als GitHub-Secret `FIREBASE_SERVICE_ACCOUNT`. Der QLab-Passcode steht nur im Mac-Schlüsselbund und gehört nie ins Repo.
 - **Keine Quizinhalte, Lösungen oder Spielerdaten** im Repo. Testrunden liegen in `tests/e2e/rounds/` (gitignored).
+- **Push-Regel:** direkt auf `main` pushen, keine Pull Requests (aus einem Worktree: `git push origin HEAD:main`). Nach jedem Push den Pages-Build prüfen. **Kein Push ab der Generalprobe bis Showende.**
 - **Nie während eines Spielabends deployen.**
 - **Datenbankregeln** (`database.rules.json`) nie offen lassen. Sie werden per GitHub Action automatisch deployt.
 - Fakten, Preise und Plattform-Grenzen recherchieren statt raten. Wo es eine Lücke gibt, das offen sagen.
