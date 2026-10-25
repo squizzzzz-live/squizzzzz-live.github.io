@@ -1,9 +1,9 @@
 // Host: Runde laden, Fragen steuern, auflösen, Punkte führen (Keypad).
-import { db } from "./fb.js?v=202610251621";
-import { parseSpeedquizzing, toNumber } from "./sqq.js?v=202610251621";
-import { scoreQuestion } from "./scoring.js?v=202610251621";
-import { playBuzzer } from "./buzzer.js?v=202610251621";
-import { shrink } from "./images.js?v=202610251621";
+import { db } from "./fb.js?v=202610251634";
+import { parseSpeedquizzing, toNumber } from "./sqq.js?v=202610251634";
+import { scoreQuestion } from "./scoring.js?v=202610251634";
+import { playBuzzer } from "./buzzer.js?v=202610251634";
+import { shrink } from "./images.js?v=202610251634";
 import { ref, get, set, update, remove, onValue, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -32,7 +32,7 @@ export function initRound(ctx) {
   function subscribeBuzzes() {
     if (pub.buzzId === buzzKey) return;
     buzzUnsub && buzzUnsub(); buzzKey = pub.buzzId || null; buzzes = {};
-    if (buzzKey) buzzUnsub = onValue(ref(db, `${G()}/buzzes/${buzzKey}`), (s) => { buzzes = s.val() || {}; pickWinner(); writeBuzzList(); render(); });
+    if (buzzKey) buzzUnsub = onValue(ref(db, `${G()}/buzzes/${buzzKey}`), (s) => { buzzes = s.val() || {}; pickWinner(); render(); });
   }
   async function pickWinner() {
     if (pub.state !== "buzz" || !Object.keys(buzzes).length) return;
@@ -41,18 +41,7 @@ export function initRound(ctx) {
     const name = ctx.roster()[pid]?.name || "?";
     await update(ref(db, `${G()}/public`), { state: "buzzed", buzz: { uid, pid: pid || null, name, ts } });
   }
-  // Alle Buzz-Zeiten (ab Freigabe) für Host und Handys – auch die, die zu langsam waren
-  let lastListKey = "";
-  async function writeBuzzList() {
-    if (!["buzz", "buzzed", "reveal"].includes(pub.state) || !pub.buzzOpenedAt) return;
-    const claims = ctx.claims(), roster = ctx.roster();
-    const list = Object.entries(buzzes).sort((a, b) => a[1] - b[1]).slice(0, 12).map(([u, t]) => {
-      const pid = Object.keys(claims).find((p) => claims[p] === u);
-      return { name: roster[pid]?.name || "?", ms: Math.max(0, t - pub.buzzOpenedAt) };
-    });
-    const key = JSON.stringify(list); if (key === lastListKey) return; lastListKey = key;
-    await set(ref(db, `${G()}/public/buzzList`), list);
-  }
+  // Buzz-Zeiten sieht nur das Pult (Martin, 25.10.2026) – sie gehen nicht mehr an die Handys (public/buzzList entfällt).
   function detach() { buzzUnsub && buzzUnsub(); buzzUnsub = null; buzzKey = null; unsub.forEach((u) => u()); unsub = []; ansUnsub && ansUnsub(); ansUnsub = null; ansQid = null; clearTimeout(closeTimer); clearInterval(tick); round = null; }
 
   // ---------- Runde laden ----------

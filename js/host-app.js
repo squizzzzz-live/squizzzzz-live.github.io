@@ -1,12 +1,12 @@
 // Host-App: Anmeldung, Spiel anlegen, Seiten Spieler / Rezeption / Spiel.
-import { startRibbons } from "./ribbons.js?v=202610251621";
-import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610251621";
-import { initRound } from "./host-round.js?v=202610251621";
-import { initLobby } from "./host-lobby.js?v=202610251621";
-import { initPlan } from "./host-plan.js?v=202610251621";
-import { isMac } from "./mac.js?v=202610251621";
-import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610251621";
-import { shrink } from "./images.js?v=202610251621";
+import { startRibbons } from "./ribbons.js?v=202610251634";
+import { auth, db, HOST_UID, APP_URL } from "./fb.js?v=202610251634";
+import { initRound } from "./host-round.js?v=202610251634";
+import { initLobby } from "./host-lobby.js?v=202610251634";
+import { initPlan } from "./host-plan.js?v=202610251634";
+import { isMac } from "./mac.js?v=202610251634";
+import { buzzerList, matchBuzzer, playBuzzer, unlockAudio, onAudioChange } from "./buzzer.js?v=202610251634";
+import { shrink } from "./images.js?v=202610251634";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { ref, get, set, update, remove, onValue, serverTimestamp }

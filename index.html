@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="sqz-build" content="202610251621">
+<meta name="sqz-build" content="202610251634">
 <meta name="theme-color" content="#0B106C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -75,15 +75,11 @@
   @keyframes bzflash { 0% { opacity: .95; } 15% { opacity: .2; } 30% { opacity: .9; } 45% { opacity: .2; } 60% { opacity: .75; } 100% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .buzzflash.on { animation: bzfade 1s ease-out; } }
   @keyframes bzfade { 0% { opacity: .6; } 100% { opacity: 0; } }
-  .bztimes { list-style: none; padding: 0; margin: 18px auto 0; max-width: 320px; text-align: left; }
-  .bztimes li { display: flex; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--line); font-weight: 700; }
-  .bztimes li:first-child { color: var(--orange); }
-  .bztimes li.me { background: rgba(255,255,255,.08); border-radius: 8px; }
   .bzstate.locked { background: rgba(229,72,77,.18); border-color: rgba(229,72,77,.6); }
   .big-check.bad { background: #E5484D; color: #fff; box-shadow: 0 0 40px rgba(229,72,77,.5); }
   .big-check.none { background: rgba(255,255,255,.15); color: var(--text); box-shadow: none; }
 </style>
-<link rel="stylesheet" href="css/base.css?v=202610251621">
+<link rel="stylesheet" href="css/base.css?v=202610251634">
 </head>
 <body>
 <div id="buzzflash" class="buzzflash" aria-hidden="true"></div>
@@ -154,7 +150,6 @@
     <img id="bz-pic" class="ppic hidden" alt="Bild zur Frage">
     <button id="bz-btn" class="buzzbtn">BUZZ</button>
     <div id="bz-state" class="bzstate hidden"></div>
-    <ol id="bz-times" class="bztimes hidden"></ol>
   </section>
 
   <!-- 5. Antwort abgeschickt / Zeit um -->
@@ -181,9 +176,9 @@
 </main>
 
 <script type="module">
-  import { startRibbons } from "./js/ribbons.js?v=202610251621";
-  import { auth, db } from "./js/fb.js?v=202610251621";
-  import { isCorrect } from "./js/scoring.js?v=202610251621";
+  import { startRibbons } from "./js/ribbons.js?v=202610251634";
+  import { auth, db } from "./js/fb.js?v=202610251634";
+  import { isCorrect } from "./js/scoring.js?v=202610251634";
   import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { ref, get, onValue, set, remove, onDisconnect, serverTimestamp, goOffline, goOnline }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -360,8 +355,6 @@
       $("rv-solution").textContent = pub.reveal.solution || "";
       $("rv-fast").textContent = w || "niemand";
       document.querySelector("#v-reveal .label + .value + .label").textContent = "Richtig beantwortet von";
-      const t = (pub.buzzList || []).slice(0, 5).map((b) => `${b.name} ${(b.ms / 1000).toFixed(2).replace(".", ",")} s`).join(" · ");
-      $("rv-mine").textContent = t ? "Buzz-Zeiten: " + t : "";
       return show("v-reveal");
     }
     document.querySelector("#v-reveal .label + .value + .label").textContent = "Am schnellsten";
@@ -384,15 +377,7 @@
       if (myBuzz[pub.buzzId]) { btn.classList.add("hidden"); set_("", `Gebuzzert!<small>Mal sehen, wer schneller war …</small>`); }
       else { btn.classList.remove("hidden"); btn.disabled = false; box.classList.add("hidden"); }
     } else { btn.classList.add("hidden"); set_("", "Gleich geht's weiter …"); }
-    renderTimes();
     show("v-buzz");
-  }
-  function renderTimes() {
-    const list = pub.buzzList || [], ol = $("bz-times"), myName = roster[myPlayerId()]?.name;
-    ol.classList.toggle("hidden", !list.length || pub.state === "buzz");
-    ol.innerHTML = "";
-    list.forEach((b, i) => { const li = document.createElement("li"); if (b.name === myName) li.className = "me";
-      li.innerHTML = `<span></span><span>${(b.ms / 1000).toFixed(2).replace(".", ",")} s</span>`; li.firstChild.textContent = `${i + 1}. ${b.name}`; ol.appendChild(li); });
   }
   $("bz-btn").addEventListener("click", async () => {
     const id = pub.buzzId; if (!id || myBuzz[id] || !(pub.state === "buzz" || pub.state === "buzzed")) return;
@@ -601,6 +586,6 @@
     if (!document.hidden && game && !loaded) { goOffline(db); goOnline(db); joinGame(game); }
   });
 </script>
-<script type="module" src="js/update.js?v=202610251621"></script>
+<script type="module" src="js/update.js?v=202610251634"></script>
 </body>
 </html>

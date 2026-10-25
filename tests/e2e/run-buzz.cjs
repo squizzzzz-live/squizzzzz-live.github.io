@@ -28,6 +28,10 @@ const B = "http://localhost:8770";
   const flash = async (p) => p.evaluate(() => document.getElementById('buzzflash')?.classList.contains('on'));
   const fl = { Moritz: await flash(P.Moritz), Anna: await flash(P.Anna) }; console.log('flash', JSON.stringify(fl));
   if (!fl.Moritz || fl.Anna) errs.push('Blitz falsch: ' + JSON.stringify(fl));
+  // Buzz-Zeiten nur im Pult, nie auf den Handys
+  const hasTime = async (p) => /\d,\d\d s/.test(await p.evaluate(() => document.body.innerText));
+  const tm = { host: await hasTime(host), Moritz: await hasTime(P.Moritz), Anna: await hasTime(P.Anna) }; console.log('times', JSON.stringify(tm));
+  if (!tm.host || tm.Moritz || tm.Anna) errs.push('Buzz-Zeiten falsch sichtbar: ' + JSON.stringify(tm));
   await shot(host, '03_host_buzzed'); await shot(P.Ben, '04_ben_dran'); await shot(P.Anna, '05_anna_other');
   await host.click('#b-wrong'); await host.waitForTimeout(700);
   await shot(P.Moritz, '06_moritz_locked'); await shot(P.Anna, '07_anna_reopen'); await shot(host, '08_host_after_wrong');
