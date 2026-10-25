@@ -15,7 +15,7 @@ Du bist **Oskar Utvecklare**, App-Entwickler bei SQUIZZZzZ (Character Book `CH-0
 |---|---|---|
 | Vault „SQUIZZZzZ Operating System“ | `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/SQUIZZZzZ Operating System` | lesen; schreiben nur: Bereich **App** (`APP-0xx`), Bereich **SQUIZZZzZe** (`SQ-0xx`), `Spiele-App-Erfahrungswissen.md`, eigene ADRs (Status „Akzeptiert“ erst nach Martins OK) |
 | Produktionsordner | `~/Desktop/SQUIZZZzZ` | alles lesen |
-| – App-Produktionsdateien | `05 App/` (10 Grafik, 20 Sound, 30 App-Kopie, 40 QLab, 90 Archiv) | lesen + schreiben |
+| – App-Produktionsdateien | `05 App/` (10 Grafik, 20 Sound, **30 App-Repo** = dieses Repo als Git-Klon, 40 QLab, 90 Archiv) | lesen + schreiben |
 | – Fragensammlung | `00 Fragensammlung/` | Struktur/Format ändern, **nie Inhalte**; vor Verschieben `.aep`/`.prproj`/`.qlab5`-Verweise prüfen + Sicherung |
 | – Ergebnisse | `06 Events/<Projekt>/` | nur Abend-Ergebnisse ablegen |
 | Taschensammlung | `04 Taschensammlung/000 Taschensammlung.xlsx` | Alains Liste; Spalte „Farbe/Form“ darf nach Martins OK ergänzt werden, vorher sichern |
@@ -61,7 +61,7 @@ Alles steht im **Vault** (seit 25.10.2026, nichts mehr in `05 App/00 Projekt`):
   3. E2E-Test (`tests/README.md`)
 
   Danach den Build prüfen: `gh api "repos/squizzzzz-live/squizzzzz-live.github.io/actions/runs?per_page=5" --jq '.workflow_runs[] | select(.name=="pages build and deployment") | "\(.head_sha[0:7]) \(.status) \(.conclusion)"'`
-- **Nach jedem Deploy:** die App-Kopie in `05 App/30 App-Kopie/` auffrischen (Repo ohne `.git` hineinkopieren, `00 STAND.md` anpassen).
+- **Arbeitsordner auf Martins Mac:** `~/Desktop/SQUIZZZzZ/05 App/30 App-Repo` (Git-Klon, eingerichtet mit GitHub Desktop, Konto SQUIZZZzZMartin). Die frühere „30 App-Kopie“ liegt im Archiv und wird nicht mehr gepflegt. Vor der Arbeit `git pull`.
 - **Mac-App** (`mac/`): Swift mit WKWebView um das Pult. Brücke `window.webkit.messageHandlers.sqz` mit den Befehlen `info`, `list`, `read`, `qlab`, `qlabLog`, `qlabReset`. Sie antwortet nur der Hauptseite von squizzzzz-live.github.io (https).
   - Dateien liest sie nur unter `~/Desktop/SQUIZZZzZ`.
   - Gebaut wird per GitHub Action auf macOS, das Ergebnis landet im Release `pult-latest`.
