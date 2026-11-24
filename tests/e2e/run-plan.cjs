@@ -13,18 +13,40 @@ const FILES = {
   "01 Trailer/12 Intermezzo/Sparkling Blue Background.mp4": "", "01 Trailer/12 Intermezzo/Standbild Sparkling Background.jpg": "",
   "01 Trailer/14 Jovis tanzt/Jovis tanzt_V1.1.mp4": "",
 };
+// Steckbriefe aus Martins Vault (nur lokal, nie ins Repo); fehlt der Vault, läuft der Test mit zwei Mini-Notes
+const VAULT = require('os').homedir() + '/Library/Mobile Documents/iCloud~md~obsidian/Documents/SQUIZZZzZ Operating System';
+const NOTES = fs.existsSync(VAULT)
+  ? fs.readdirSync(VAULT).filter((n) => /^SQ-0\d\d-.*\.md$/.test(n)).map((n) => ({ name: n, text: fs.readFileSync(VAULT + '/' + n, 'utf8') }))
+  : [{ name: 'SQ-001-Test.md', text: '---\ntyp: Spiel\nid: SQ-001\nname: Test\nmechanik: ["Buzzin"]\nmedien: Film\ndauer: "10 min"\n---\n' },
+     { name: 'SQ-002-Dalli.md', text: '---\ntyp: Spiel\nid: SQ-002\nname: Dalli\nmechanik: []\nmedien: keine\n---\n' }];
+// R2: echte Ordner von Dalli und Kraut und Rüben nachbilden (Dateinamen, Rundendateien mit Inhalt) – nur lokal
+const FS = require('os').homedir() + '/Desktop/SQUIZZZzZ/';
+function addTree(rel, depth = 4) {
+  if (!fs.existsSync(FS + rel)) return false;
+  for (const e of fs.readdirSync(FS + rel, { withFileTypes: true })) {
+    if (e.name.startsWith('.')) continue;
+    const r = rel + '/' + e.name;
+    if (e.isDirectory()) { if (depth > 0) addTree(r, depth - 1); else FILES[r + '/.keep'] = ''; }
+    else FILES[r] = /\.(sqq|sqb|sqn)$/i.test(e.name) ? fs.readFileSync(FS + r, 'utf8') : '';
+  }
+  return true;
+}
+const R2 = fs.existsSync(VAULT) && addTree('00 Fragensammlung/Dalli-SQUIZZZzZ') && addTree('00 Fragensammlung/Kraut und Rüben');
+const EXPECT_GAMES = NOTES.filter((n) => /^typ: Spiel$/m.test(n.text)).length;
 (async () => {
   const br = await chromium.launch({ executablePath: require('fs').existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined }); const ctx = await br.newContext(); const errs = [];
   const mk = async (n, vp) => { const p = await ctx.newPage(); await p.setViewportSize(vp); p.on('pageerror', e => errs.push(n + ': ' + e.message)); p.on('console', m => m.type() === 'error' && errs.push(n + ' console: ' + m.text())); p.on('dialog', d => d.accept()); return p; };
   const shot = async (p, n) => { await p.waitForTimeout(350); await p.screenshot({ path: `shots/plan-${n}.png`, fullPage: false }); };
   fs.mkdirSync("shots", { recursive: true });
   const host = await mk('host', { width: 1440, height: 950 });
-  await host.addInitScript((files) => {
+  await host.addInitScript(({ files, notes }) => {
     window.webkit = { messageHandlers: { sqz: { postMessage: async (m) => {
       const a = m.args || {};
+      if (m.cmd === 'sqNotes') return { notes, pending: [] };
       if (m.cmd === 'info') return { version: 'test', root: '/x', rootFound: true, passcodeSet: true };
-      if (m.cmd === 'list') { const pre = a.path ? a.path + '/' : ''; const names = new Map();
-        Object.keys(files).filter(k => k.startsWith(pre)).forEach(k => { const rest = k.slice(pre.length); const top = rest.split('/')[0]; names.set(top, rest.includes('/')); });
+      const N = (s) => s.normalize('NFC');
+      if (m.cmd === 'list') { const pre = a.path ? N(a.path) + '/' : ''; const names = new Map();
+        Object.keys(files).filter(k => N(k).startsWith(pre)).forEach(k => { const d = pre ? pre.split('/').length - 1 : 0, parts = k.split('/'); names.set(parts[d], parts.length > d + 1); });
         return [...names].map(([name, dir]) => ({ name, dir, size: 1000 })); }
       if (m.cmd === 'qlab') {
         const Q = window.__Q = window.__Q || { lists: [{ uniqueID: 'L1', listName: 'Main Cue List', cues: [{ uniqueID: 'OLD1', number: '1.1', name: 'alt', type: 'audio' }] }], n: 0 };
@@ -43,10 +65,10 @@ const FILES = {
         else if ((mm = ad.match(/^\/cue\/(.+)\/(\w+)$/))) { const c = byNum(mm[1]); data = mm[2] === 'isBroken' ? false : (c ? c[mm[2]] ?? 0 : null); }
         return JSON.stringify({ status: 'ok', data });
       }
-      if (m.cmd === 'read') { if (!(a.path in files)) throw new Error('Datei nicht lesbar: ' + a.path); return files[a.path]; }
+      if (m.cmd === 'read') { const key = Object.keys(files).find(k => N(k) === N(a.path)); if (key === undefined) throw new Error('Datei nicht lesbar: ' + a.path); return files[key]; }
       throw new Error('unbekannt');
     } } } };
-  }, FILES);
+  }, { files: FILES, notes: NOTES });
   await host.goto(B + "/host/"); await host.evaluate(() => localStorage.clear()); await host.reload(); await host.waitForTimeout(500);
   await host.fill('#new-title', 'Plantest'); await host.fill('#wish', 'PLAN'); await host.click('#create'); await host.waitForTimeout(500);
   await host.click('a[data-tab=spieler]'); await host.fill('#add-names', 'Anna\nBen'); await host.click('#add-btn'); await host.waitForTimeout(300);
@@ -55,6 +77,15 @@ const FILES = {
 
   // Regieplan anlegen
   await host.click('a[data-tab=regieplan]'); await host.waitForTimeout(200);
+  // R1: Spieleliste aus den Steckbriefen
+  await host.waitForTimeout(400);
+  const gl = await host.evaluate(() => ({ n: document.querySelectorAll('#games-list .game').length, info: document.getElementById('games-info').textContent }));
+  console.log('Spiele', JSON.stringify(gl), 'erwartet', EXPECT_GAMES);
+  if (gl.n !== EXPECT_GAMES || !gl.info.startsWith(EXPECT_GAMES + ' Spiele')) errs.push('Spieleliste falsch: ' + JSON.stringify(gl));
+  await host.fill('#games-filter', 'dalli'); await host.waitForTimeout(100);
+  const gf = await host.evaluate(() => document.querySelectorAll('#games-list .game').length);
+  if (gf !== 1) errs.push('Suche „dalli“ liefert ' + gf);
+  await shot(host, '01b_spiele'); await host.fill('#games-filter', '');
   for (const t of ['film', 'moderation', 'runde', 'runde', 'runde', 'sieger']) { await host.click(`[data-add-block=${t}]`); await host.waitForTimeout(120); }
   const card = (i) => `#plan-list [data-i="${i}"]`;
   await host.fill(`${card(0)} [data-k=title]`, 'Vorspann'); await host.dispatchEvent(`${card(0)} [data-k=title]`, 'change');
@@ -106,6 +137,26 @@ const FILES = {
   await host.click('#rb-strip [data-i="4"]'); await host.waitForTimeout(700);
   console.log('nach Reserve-Klick:', await host.textContent('#rb-title'), '|', await label(), '| live:', await host.isVisible('#round-live'));
   await shot(host, '06_reserve'); await shot(P.Anna, '07_anna');
+  // R2: Runde aus Steckbrief + Deck anlegen, alles vorbelegt, sofort geprüft
+  if (R2) {
+    await host.click('a[data-tab=regieplan]'); await host.waitForTimeout(300);
+    const before = await host.evaluate(() => document.querySelectorAll('#plan-list .pblock').length);
+    const addDeck = async (id, nr) => {
+      await host.click(`#games-list [data-open="${id}"]`); await host.waitForTimeout(150);
+      await host.click(`#games-list [data-add="${id}:${nr}"]`); await host.waitForTimeout(1500);
+    };
+    await addDeck('SQ-001', '4');
+    await addDeck('SQ-014', '1');
+    const got = await host.evaluate((n) => [...document.querySelectorAll('#plan-list .pblock')].slice(n).map((el) => ({
+      title: el.querySelector('[data-k=title]').value, file: el.querySelector('[data-k=file]')?.value, explain: el.querySelector('[data-k=explain]')?.value,
+      media: el.querySelector('[data-k=mediaType]')?.value, clips: el.querySelector('[data-k=clipsDir]')?.value || '', src: el.querySelector('.pb-src')?.textContent || '',
+      check: el.querySelector('.pb-check')?.textContent || '' })), before);
+    console.log('R2', JSON.stringify(got, null, 1));
+    const [d, k] = got;
+    if (!d || !/AroundTheWorld\.sqb$/.test(d.file) || d.media !== 'video' || !/04 Around the World$/.test(d.clips) || !/n\.0 Dalli/.test(d.explain) || !/10 Clips passen/.test(d.check) || !/SQ-001 · Deck 4/.test(d.src)) errs.push('R2 Dalli falsch: ' + JSON.stringify(d));
+    if (!k || !/KrautUndRueben\.sqq$/.test(k.file) || k.media !== 'none' || !/^✓/.test(k.check) || !/Tasche 29/.test(k.src)) errs.push('R2 Kraut falsch: ' + JSON.stringify(k));
+    await shot(host, '20_r2_runden');
+  } else console.log('R2 übersprungen (kein Vault oder Fragensammlung)');
   console.log('ERRORS', errs);
   await br.close();
 })();
