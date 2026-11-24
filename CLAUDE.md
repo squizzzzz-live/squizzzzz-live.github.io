@@ -80,7 +80,7 @@ Alles steht im **Vault** (seit 25.10.2026, nichts mehr in `05 App/00 Projekt`):
   3. E2E-Test (`tests/README.md`; läuft auf Martins Mac, Testrunden im festen Klon unter `tests/e2e/rounds/`)
 
   Danach den Build prüfen: `gh api "repos/squizzzzz-live/squizzzzz-live.github.io/actions/runs?per_page=5" --jq '.workflow_runs[] | select(.name=="pages build and deployment") | "\(.head_sha[0:7]) \(.status) \(.conclusion)"'`
-- **Arbeitsordner auf Martins Mac:** `~/Desktop/SQUIZZZzZ/05 App/30 App-Repo` (Git-Klon, eingerichtet mit GitHub Desktop, Konto SQUIZZZzZMartin). Die frühere „30 App-Kopie“ liegt im Archiv und wird nicht mehr gepflegt. Vor der Arbeit `git pull`.
+- **Arbeitsordner auf Martins Mac:** `~/Desktop/SQUIZZZzZ/05 App/30 App-Repo` (Git-Klon, eingerichtet mit GitHub Desktop, GitHub-Konto `martinhohmann`; bis 10.11.2026 hieß es `SQUIZZZzZMartin`, dasselbe Konto, `gh` zeigt noch den alten Namen. Die App gehört zur Organisation `squizzzzz-live`). Die frühere „30 App-Kopie“ liegt im Archiv und wird nicht mehr gepflegt. Vor der Arbeit `git pull`.
 - **Mac-App** (`mac/`): Swift mit WKWebView um das Pult. Brücke `window.webkit.messageHandlers.sqz` mit den Befehlen `info`, `list`, `read`, `qlab`, `qlabLog`, `qlabReset`. Sie antwortet nur der Hauptseite von squizzzzz-live.github.io (https).
   - Dateien liest sie nur unter `~/Desktop/SQUIZZZzZ`.
   - Gebaut wird per GitHub Action auf macOS, das Ergebnis landet im Release `pult-latest`.
