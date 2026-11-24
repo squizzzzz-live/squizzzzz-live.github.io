@@ -102,7 +102,7 @@ Alles steht im **Vault** (seit 25.10.2026, nichts mehr in `05 App/00 Projekt`):
 1. **Regieplan Version 2:** Konzept in `APP-003` (Entwurf). Martin liest es und beantwortet die offenen Fragen dort (u. a. ob die Mac-App den Vault lesen darf). Erst danach bauen, Schritte R1–R6.
 2. **Spiel-Notes:** Martin prüft SQ-002 … SQ-045 nach und nach, Rückmeldungen einarbeiten.
 3. **Gemeinsamer Probelauf:** kompletter Abend, 15 simulierte Spieler in 4 Gruppen; vorher Mac-App 0.1.4 installieren, „QLab befüllen“ (leere Liste), Bildausgang und „automatisch weiter“ am echten QLab testen.
-4. **Auf der Liste (später):** Minuspunkte bei Buzzin (Standard aus), Timezone mit Timer (Martin tendiert zu „jeder stoppt seine eigene Zeit“), Beamer-Ansicht, Siegerverkündung, Export nach `06 Events`.
+4. **Auf der Liste (später):** Minuspunkte bei Buzzin (Standard aus), Timezone mit Timer (Martin tendiert zu „jeder stoppt seine eigene Zeit“), Beamer-Ansicht, Siegerverkündung, Export nach `06 Events`; Showbetrieb mit QLab (siehe „Buzz-Verhalten“ oben); Techniktest im Pult (Probeton, kaputte Cues anzeigen).
 
 **Vorschläge, die Martin noch umsetzen muss** (fremde Dateien):
 - Arthurs Character Book an die SQ-Notes anpassen
